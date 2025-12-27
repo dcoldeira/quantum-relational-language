@@ -4,7 +4,7 @@ Tests for QPL core functionality
 
 import numpy as np
 import pytest
-from src.qpl.core import (
+from qpl.core import (
     QPLProgram, QuantumRelation, QuantumQuestion, QuestionType,
     entangle, ask, create_question
 )

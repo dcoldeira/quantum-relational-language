@@ -359,8 +359,13 @@ def entangle(program: QPLProgram, system1: int, system2: int) -> QuantumRelation
     return program.entangle(system1, system2)
 
 def ask(program: QPLProgram, relation: QuantumRelation,
-        question_type: Union[str, QuestionType], **kwargs) -> Any:
+        question_type: Union[str, QuestionType, QuantumQuestion], **kwargs) -> Any:
     """Convenience function for asking questions"""
+    # If already a QuantumQuestion, use it directly
+    if isinstance(question_type, QuantumQuestion):
+        return program.ask(relation, question_type, **kwargs)
+
+    # Convert string to QuestionType
     if isinstance(question_type, str):
         question_type = QuestionType(question_type)
 
