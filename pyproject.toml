@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "quantum-process-language"
+version = "0.1.0"
+description = "A quantum programming language built from first principles of information theory"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Quantum Process Language Contributors"},
+]
+requires-python = ">=3.8"
+dependencies = [
+    "numpy>=1.20",
+    "qiskit>=0.40",
+    "cirq>=1.0",
+    "networkx>=2.6",
+    "matplotlib>=3.5",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "black>=22.0",
+    "mypy>=0.991",
+    "pylint>=2.15",
+]
+docs = [
+    "sphinx>=5.0",
+    "sphinx-rtd-theme>=1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/quantum-process-language"
+Documentation = "https://github.com/yourusername/quantum-process-language/docs"
+Repository = "https://github.com/yourusername/quantum-process-language"
+"Issue Tracker" = "https://github.com/yourusername/quantum-process-language/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
