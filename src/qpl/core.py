@@ -6,10 +6,11 @@ License: MIT
 """
 
 from dataclasses import dataclass, field
-from typing import List, Callable, Dict, Any, Optional, Union
+from typing import List, Callable, Dict, Any, Optional, Union, Tuple
 from enum import Enum
 import numpy as np
 import networkx as nx
+from .measurement import measure_subsystem, measure_full_system
 
 
 class QuestionType(Enum):
@@ -33,6 +34,7 @@ class QuantumQuestion:
     backaction: Callable  # How asking changes the system
     incompatible_with: List[QuestionType] = field(default_factory=list)
     description: str = ""
+    subsystem: Optional[int] = None  # Which subsystem to measure (None = measure all)
 
     def __post_init__(self):
         if not self.description:
@@ -127,8 +129,13 @@ class Perspective:
         self.knowledge_state = {}  # What this perspective "knows"
         self.questions_asked = []
 
-    def ask(self, relation: QuantumRelation, question: QuantumQuestion) -> Any:
-        """Ask a question from this perspective"""
+    def ask(self, relation: QuantumRelation, question: QuantumQuestion) -> Tuple[int, np.ndarray]:
+        """
+        Ask a question from this perspective.
+
+        Returns:
+            (outcome, collapsed_state)
+        """
         self.questions_asked.append({
             'question': question.question_type,
             'time': time.time(),
@@ -138,22 +145,33 @@ class Perspective:
         # This is where relational quantum mechanics manifests
         return self._get_perspective_specific_answer(relation, question)
 
-    def _get_perspective_specific_answer(self, relation: QuantumRelation, question: QuantumQuestion) -> Any:
-        """Get answer specific to this perspective"""
-        # Base implementation - same for all perspectives
-        # In advanced version, perspectives could have different POVMs
-        probabilities = self._compute_probabilities(relation.state, question.basis)
-        outcome = np.random.choice(len(probabilities), p=probabilities)
-        return outcome
+    def _get_perspective_specific_answer(self, relation: QuantumRelation, question: QuantumQuestion) -> Tuple[int, np.ndarray]:
+        """
+        Get answer specific to this perspective.
 
-    def _compute_probabilities(self, state: np.ndarray, basis: np.ndarray) -> np.ndarray:
-        """Compute probabilities of measurement outcomes"""
-        # Project state onto basis vectors
-        projections = []
-        for basis_vector in basis.T:  # Assuming basis vectors are columns
-            projection = np.abs(np.vdot(basis_vector, state))**2
-            projections.append(projection)
-        return np.array(projections) / np.sum(projections)
+        Returns:
+            (outcome, collapsed_state)
+        """
+        # Determine how many qubits are in this relation
+        num_qubits = len(relation.systems)
+
+        # Check if we're measuring a subsystem or the full system
+        if question.subsystem is not None:
+            # Partial measurement of one subsystem
+            outcome, collapsed_state = measure_subsystem(
+                relation.state,
+                question.basis,
+                question.subsystem,
+                num_qubits
+            )
+        else:
+            # Full system measurement
+            outcome, collapsed_state = measure_full_system(
+                relation.state,
+                question.basis
+            )
+
+        return outcome, collapsed_state
 
 
 class QPLProgram:
@@ -235,34 +253,46 @@ class QPLProgram:
         return new_relation
 
     def ask(self, relation: QuantumRelation, question: QuantumQuestion,
-            perspective: str = "default") -> Any:
+            perspective: str = "default") -> int:
         """
         Ask a question about a quantum relation.
         Different perspectives might get different answers!
+
+        Returns:
+            Measurement outcome (integer)
         """
         if perspective not in self.perspectives:
             raise ValueError(f"Unknown perspective: {perspective}")
 
         perspective_obj = self.perspectives[perspective]
-        answer = perspective_obj.ask(relation, question)
+        outcome, collapsed_state = perspective_obj.ask(relation, question)
 
-        # Apply backaction (measurement changes the state)
-        new_state = question.backaction(relation.state, answer)
+        # Update relation with collapsed state
+        relation.state = collapsed_state
 
-        # Update relation (measurement typically destroys entanglement)
-        relation.state = new_state
-        relation.entanglement_entropy = 0.0
+        # Recompute entanglement entropy after measurement
+        # For now, simplified: partial measurements may preserve some entanglement
+        if question.subsystem is not None and len(relation.systems) > 1:
+            # Partial measurement - may still have entanglement
+            # Compute new entropy
+            relation.entanglement_entropy = relation._compute_entanglement_entropy(
+                collapsed_state, question.subsystem
+            )
+        else:
+            # Full measurement destroys entanglement
+            relation.entanglement_entropy = 0.0
 
         # Record in history
         self.history.append({
             'type': 'question_asked',
             'perspective': perspective,
             'question': question.question_type.value,
-            'answer': answer,
+            'answer': outcome,
+            'subsystem': question.subsystem,
             'time': time.time()
         })
 
-        return answer
+        return outcome
 
     def superposition(self, branches: List[Callable],
                      amplitudes: List[complex] = None) -> Dict:
@@ -360,44 +390,69 @@ def entangle(program: QPLProgram, system1: int, system2: int) -> QuantumRelation
 
 def ask(program: QPLProgram, relation: QuantumRelation,
         question_type: Union[str, QuestionType, QuantumQuestion], **kwargs) -> Any:
-    """Convenience function for asking questions"""
+    """
+    Convenience function for asking questions.
+
+    Args:
+        program: QPL program
+        relation: Quantum relation to measure
+        question_type: Type of question or QuantumQuestion object
+        **kwargs: Additional arguments including:
+            - perspective: Which perspective asks (default="default")
+            - subsystem: Which subsystem to measure (None = measure all)
+    """
+    # Extract perspective and subsystem from kwargs
+    perspective = kwargs.pop('perspective', 'default')
+    subsystem = kwargs.pop('subsystem', None)
+
     # If already a QuantumQuestion, use it directly
     if isinstance(question_type, QuantumQuestion):
-        return program.ask(relation, question_type, **kwargs)
+        # Override subsystem if specified in kwargs
+        if subsystem is not None:
+            question_type.subsystem = subsystem
+        return program.ask(relation, question_type, perspective=perspective)
 
     # Convert string to QuestionType
     if isinstance(question_type, str):
         question_type = QuestionType(question_type)
 
     # Create appropriate question based on type
-    question = create_question(question_type, **kwargs)
-    return program.ask(relation, question)
+    question = create_question(question_type, subsystem=subsystem, **kwargs)
+    return program.ask(relation, question, perspective=perspective)
 
 def superposition(program: QPLProgram, branches: List[Callable], **kwargs):
     """Convenience function for superposition execution"""
     return program.superposition(branches, **kwargs)
 
-def create_question(question_type: QuestionType, **kwargs) -> QuantumQuestion:
-    """Create a quantum question of the specified type"""
+def create_question(question_type: QuestionType, subsystem: Optional[int] = None, **kwargs) -> QuantumQuestion:
+    """
+    Create a quantum question of the specified type.
+
+    Args:
+        question_type: Type of question
+        subsystem: Which subsystem to measure (None = measure all)
+        **kwargs: Additional parameters for custom questions
+    """
+    # Dummy backaction (kept for backwards compatibility, not actually used)
+    dummy_backaction = lambda state, outcome: state
+
     # Default questions
     questions = {
         QuestionType.SPIN_Z: QuantumQuestion(
             question_type=QuestionType.SPIN_Z,
             basis=np.array([[1, 0], [0, 1]]),  # Z basis
-            backaction=lambda state, outcome: (
-                np.array([1, 0]) if outcome == 0 else np.array([0, 1])
-            ),
+            backaction=dummy_backaction,
             description="Spin in Z direction",
-            incompatible_with=[QuestionType.SPIN_X, QuestionType.SPIN_Y]
+            incompatible_with=[QuestionType.SPIN_X, QuestionType.SPIN_Y],
+            subsystem=subsystem
         ),
         QuestionType.SPIN_X: QuantumQuestion(
             question_type=QuestionType.SPIN_X,
             basis=np.array([[1, 1], [1, -1]]) / np.sqrt(2),  # X basis
-            backaction=lambda state, outcome: (
-                np.array([1, 1])/np.sqrt(2) if outcome == 0 else np.array([1, -1])/np.sqrt(2)
-            ),
+            backaction=dummy_backaction,
             description="Spin in X direction",
-            incompatible_with=[QuestionType.SPIN_Z, QuestionType.SPIN_Y]
+            incompatible_with=[QuestionType.SPIN_Z, QuestionType.SPIN_Y],
+            subsystem=subsystem
         ),
     }
 
@@ -408,9 +463,10 @@ def create_question(question_type: QuestionType, **kwargs) -> QuantumQuestion:
         return QuantumQuestion(
             question_type=question_type,
             basis=kwargs.get('basis', np.eye(2)),
-            backaction=kwargs.get('backaction', lambda state, outcome: state),
+            backaction=kwargs.get('backaction', dummy_backaction),
             incompatible_with=kwargs.get('incompatible_with', []),
-            description=kwargs.get('description', 'Custom question')
+            description=kwargs.get('description', 'Custom question'),
+            subsystem=subsystem
         )
 
 

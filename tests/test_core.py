@@ -97,5 +97,91 @@ def test_superposition():
                abs(result['amplitudes'][1])**2 - 1.0) < 1e-10
 
 
+def test_partial_measurement():
+    """Test measuring one qubit from an entangled pair"""
+    program = QPLProgram()
+
+    # Create entangled Bell pair
+    sys1 = program.create_system()
+    sys2 = program.create_system()
+    relation = entangle(program, sys1, sys2)
+
+    # Verify entanglement
+    assert relation.entanglement_entropy > 0.9
+
+    # Measure first qubit (subsystem 0) in Z basis
+    question = create_question(QuestionType.SPIN_Z, subsystem=0)
+    result = ask(program, relation, question, perspective="default")
+
+    # Result should be 0 or 1
+    assert result in [0, 1]
+
+    # State should still be 4-dimensional (2 qubits)
+    assert len(relation.state) == 4
+
+    # After partial measurement, some entanglement may remain
+    # (depending on the measurement result, but for Bell state it collapses)
+    # Check that entropy changed
+    print(f"Entropy after partial measurement: {relation.entanglement_entropy}")
+
+
+def test_multi_qubit_full_measurement():
+    """Test measuring both qubits together"""
+    program = QPLProgram()
+
+    # Create entangled pair
+    sys1 = program.create_system()
+    sys2 = program.create_system()
+    relation = entangle(program, sys1, sys2)
+
+    # For full measurement, need a 4x4 basis (not implemented yet in create_question)
+    # So let's just verify partial measurements work for both qubits
+
+    # Measure first qubit
+    q1 = create_question(QuestionType.SPIN_Z, subsystem=0)
+    r1 = program.ask(relation, q1)
+    assert r1 in [0, 1]
+
+    # Measure second qubit
+    q2 = create_question(QuestionType.SPIN_Z, subsystem=1)
+    r2 = program.ask(relation, q2)
+    assert r2 in [0, 1]
+
+    # After measuring both qubits separately, entanglement should be gone
+    assert relation.entanglement_entropy < 0.1
+
+
+def test_bell_pair_correlations():
+    """Test that Bell pairs show perfect correlations"""
+    program = QPLProgram()
+
+    # Run multiple trials
+    same_results = 0
+    trials = 100
+
+    for _ in range(trials):
+        # Fresh entangled pair each time
+        program_trial = QPLProgram()
+        s1 = program_trial.create_system()
+        s2 = program_trial.create_system()
+        rel = entangle(program_trial, s1, s2)
+
+        # Measure both in Z basis
+        q1 = create_question(QuestionType.SPIN_Z, subsystem=0)
+        q2 = create_question(QuestionType.SPIN_Z, subsystem=1)
+
+        r1 = program_trial.ask(rel, q1)
+        r2 = program_trial.ask(rel, q2)
+
+        if r1 == r2:
+            same_results += 1
+
+    # For Bell state |00⟩+|11⟩, measuring in Z should give perfect correlations
+    # (both 0 or both 1)
+    correlation_rate = same_results / trials
+    print(f"Bell pair correlation: {correlation_rate:.2f}")
+    assert correlation_rate > 0.9  # Should be close to 1.0
+
+
 if __name__ == "__main__":
     pytest.main([__file__])

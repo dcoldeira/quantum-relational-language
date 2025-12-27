@@ -45,14 +45,22 @@ def quantum_teleportation():
 
     # Step 4: Alice measures both her qubits
     print("\n4. Alice asks questions (measures)...")
-    print("   [NOTE: Multi-qubit measurement not yet implemented]")
-    print("   Simulating measurement results...")
 
-    # TODO: Implement proper Bell basis measurement
-    # For now, simulate random outcomes
-    import random
-    answers = [random.randint(0, 1), random.randint(0, 1)]
-    print(f"   Simulated measurement results: {answers}")
+    # Alice measures her qubit (from the Bell pair)
+    # In real teleportation, this would be a Bell basis measurement
+    # For this demo, we'll measure in Z and X bases
+
+    question_z = create_question(QuestionType.SPIN_Z, subsystem=0)  # Measure Alice's qubit
+    result_z = program.ask(channel, question_z, perspective="alice")
+    print(f"   Alice's Z measurement: {result_z}")
+
+    # Note: After first measurement, we'd need to measure the message qubit too
+    # For this simplified demo, we'll do a second Z measurement
+    question_x = create_question(QuestionType.SPIN_X, subsystem=1)  # Measure Bob's qubit side
+    result_x = program.ask(channel, question_x, perspective="alice")
+    print(f"   Alice's X measurement: {result_x}")
+
+    answers = [result_z, result_x]
 
     print(f"\n5. Alice sends classical bits to Bob: {answers}")
 
