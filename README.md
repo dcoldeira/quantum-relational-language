@@ -57,6 +57,14 @@ See the examples directory for:
 
 - Quantum key distribution
 
+## Author
+
+Created by **David Coldeira** (dcoldeira@gmail.com)
+
 ## Contributing
 
 This is a research project exploring the foundations of quantum programming. We welcome contributions from physicists, computer scientists, and philosophers.
+
+## License
+
+MIT License - see [LICENSE](LICENSE) file for details.

@@ -9,7 +9,7 @@ description = "A quantum programming language built from first principles of inf
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
-    {name = "Quantum Process Language Contributors"},
+    {name = "David Coldeira", email = "dcoldeira@gmail.com"},
 ]
 requires-python = ">=3.8"
 dependencies = [

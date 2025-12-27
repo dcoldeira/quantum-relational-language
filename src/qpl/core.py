@@ -1,5 +1,8 @@
 """
 Core QPL implementation - The quantum process language runtime
+
+Author: David Coldeira (dcoldeira@gmail.com)
+License: MIT
 """
 
 from dataclasses import dataclass, field
