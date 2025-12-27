@@ -14,19 +14,38 @@ QPL is not just another quantum programming language. It embodies a fundamental 
 ## Quick Start
 
 ```python
-from qpl import QPLProgram, entangle, ask, superposition
+from qpl import QPLProgram, create_question, QuestionType
 
 # Create a quantum program
-program = QPLProgram()
+program = QPLProgram("My First QPL Program")
 
-# Entangle two qubits
-bell_pair = program.entangle(qubit1=0, qubit2=1)
+# Create quantum systems
+qubit_a = program.create_system()
+qubit_b = program.create_system()
 
-# Ask a question (measurement in a basis)
-result = program.ask(bell_pair, question="spin_z")
+# Entangle them (creates a Bell pair)
+bell_pair = program.entangle(qubit_a, qubit_b)
 
-# Run on quantum hardware
-results = program.run(backend="ibmq_quito", shots=1024)
+# Add a perspective (observer)
+alice = program.add_perspective("alice", {"role": "experimenter"})
+
+# Create a question (measurement in Z basis)
+question = create_question(QuestionType.SPIN_Z)
+
+# For single qubit measurement
+single_qubit = program.create_system()
+relation = program._find_relation_with_system(single_qubit)
+result = program.ask(relation, question, perspective="alice")
+
+print(f"Measurement result: {result}")
+print(f"Entanglement entropy: {bell_pair.entanglement_entropy:.3f}")
+```
+
+### Run the Interactive Demo
+
+```bash
+# From the project root directory
+python examples/quickstart.py
 ```
 
 ## Installation
@@ -47,15 +66,22 @@ pip install quantum-process-language
 - Physics-aware compilation: Optimize for coherence time and entanglement preservation
 
 ## Examples
-See the examples directory for:
 
-- Quantum teleportation
+See the `examples/` directory for demonstrations:
 
+- **quickstart.py** - Interactive introduction to QPL concepts
+- **teleportation.py** - Quantum teleportation protocol
+
+Coming soon:
 - Bell inequality violation
-
 - Double-slit experiment simulation
-
 - Quantum key distribution
+
+Run any example from the project root:
+```bash
+python examples/quickstart.py
+python examples/teleportation.py
+```
 
 ## Author
 

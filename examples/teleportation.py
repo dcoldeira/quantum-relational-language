@@ -1,9 +1,10 @@
+#!/usr/bin/env python3
 """
 Quantum teleportation example in QPL
 """
 
 import numpy as np
-from ..core import QPLProgram, entangle, ask, create_question, QuestionType
+from qpl import QPLProgram, entangle, ask, create_question, QuestionType
 
 
 def quantum_teleportation():
@@ -15,6 +16,10 @@ def quantum_teleportation():
 
     # Create the program
     program = QPLProgram("Quantum Teleportation")
+
+    # Create perspectives
+    program.add_perspective("alice", {"role": "sender"})
+    program.add_perspective("bob", {"role": "receiver"})
 
     # Create three systems: Alice's message, Alice's half of Bell pair, Bob's half
     message_id = program.create_system(initial_state=np.array([1, 0]))  # |0⟩
@@ -40,20 +45,14 @@ def quantum_teleportation():
 
     # Step 4: Alice measures both her qubits
     print("\n4. Alice asks questions (measures)...")
+    print("   [NOTE: Multi-qubit measurement not yet implemented]")
+    print("   Simulating measurement results...")
 
-    # Define Bell measurement questions
-    bell_questions = [
-        create_question(QuestionType.SPIN_Z),
-        create_question(QuestionType.SPIN_X)
-    ]
-
-    answers = []
-    for i, question in enumerate(bell_questions):
-        # In real teleportation, Alice measures in Bell basis
-        # Simplified for demonstration
-        answer = ask(program, channel, question, perspective="alice")
-        answers.append(answer)
-        print(f"   Question {i+1} answer: {answer}")
+    # TODO: Implement proper Bell basis measurement
+    # For now, simulate random outcomes
+    import random
+    answers = [random.randint(0, 1), random.randint(0, 1)]
+    print(f"   Simulated measurement results: {answers}")
 
     print(f"\n5. Alice sends classical bits to Bob: {answers}")
 
