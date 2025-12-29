@@ -1,0 +1,838 @@
+{
+  "version": "1.0.0",
+  "last_updated": "2025-12-28",
+  "metadata": {
+    "description": "Curated knowledge base of quantum computational advantage",
+    "maintainers": ["quantum_advisor_team"],
+    "license": "CC-BY-4.0"
+  },
+
+  "problem_classes": {
+    "integer_factorization": {
+      "problem_class_id": "integer_factorization",
+      "name": "Integer Factorization",
+      "description": "Given an integer N, find its prime factors",
+      "category": "cryptography",
+
+      "quantum_status": {
+        "advantage_proven": true,
+        "advantage_type": "exponential",
+        "confidence_level": "proven",
+        "caveats": [
+          "Requires fault-tolerant quantum computer for cryptographically relevant sizes",
+          "Classical algorithms may improve (though unlikely to match quantum)",
+          "Requires efficient modular arithmetic circuit"
+        ]
+      },
+
+      "quantum_approaches": [
+        {
+          "algorithm_id": "shors_algorithm",
+          "status": "standard",
+          "applicability": "All integer factorization problems; optimal for large semiprimes"
+        }
+      ],
+
+      "classical_baseline": {
+        "best_known_algorithm": "General Number Field Sieve (GNFS)",
+        "complexity": "exp(O((log N)^(1/3) * (log log N)^(2/3)))",
+        "practical_performance": "RSA-250 (829 bits) factored in 2700 CPU-years (2020)",
+        "state_of_art_tools": ["CADO-NFS", "GGNFS", "msieve"]
+      },
+
+      "breakeven_analysis": {
+        "problem_size_threshold": "N > 2048 bits for cryptographic relevance; quantum wins at all sizes asymptotically",
+        "current_achievability": "fault_tolerant_era",
+        "required_qubits": "~4000-8000 logical qubits for RSA-2048 (20M+ physical qubits with surface code)",
+        "required_quality": "Logical error rate ~10^-15, physical error rate <10^-3",
+        "estimated_timeline": "2030-2040 (highly uncertain, depends on error correction progress)"
+      },
+
+      "recommendations": {
+        "when_to_use_quantum": "Only in fault-tolerant era for cryptographically large integers. Not viable on NISQ devices.",
+        "when_to_use_classical": "All current applications. Classical factorization adequate for research/small numbers.",
+        "hybrid_approaches": "No effective hybrid approach known; problem requires full quantum coherence"
+      },
+
+      "citations": ["shor1994", "fowler2012", "gidney2019"],
+      "examples": [
+        "Factor N=15 (toy example, 4 qubits)",
+        "Factor N=RSA-2048 (829-bit semiprime, cryptographic target)"
+      ],
+      "related_problems": ["discrete_logarithm", "integer_multiplication"]
+    },
+
+    "unstructured_search": {
+      "problem_class_id": "unstructured_search",
+      "name": "Unstructured Database Search",
+      "description": "Find marked item in unsorted database of N items",
+      "category": "search",
+
+      "quantum_status": {
+        "advantage_proven": true,
+        "advantage_type": "quadratic",
+        "confidence_level": "proven",
+        "caveats": [
+          "Requires efficient quantum oracle implementation",
+          "Quadratic speedup may not justify quantum overhead in practice",
+          "Oracle complexity dominates for many real problems"
+        ]
+      },
+
+      "quantum_approaches": [
+        {
+          "algorithm_id": "grovers_algorithm",
+          "status": "standard",
+          "applicability": "Any problem reducible to unstructured search with efficient oracle"
+        }
+      ],
+
+      "classical_baseline": {
+        "best_known_algorithm": "Linear search (brute force)",
+        "complexity": "O(N)",
+        "practical_performance": "Simple, fast for small N; impractical for large N",
+        "state_of_art_tools": ["Standard iteration in any language"]
+      },
+
+      "breakeven_analysis": {
+        "problem_size_threshold": "N > 10^6 approximately, depends on oracle efficiency",
+        "current_achievability": "near_term_5yr",
+        "required_qubits": "log2(N) + ancilla for oracle (e.g., 20 qubits for N=1M)",
+        "required_quality": "Circuit depth ~π/4 * √N, needs good coherence",
+        "estimated_timeline": "2025-2030 for moderately sized problems if oracle is efficient"
+      },
+
+      "recommendations": {
+        "when_to_use_quantum": "When oracle is efficient, N is large, and quantum hardware available with sufficient coherence",
+        "when_to_use_classical": "For small N, complex oracles, or when quantum overhead not justified",
+        "hybrid_approaches": "Amplitude amplification in hybrid algorithms (e.g., QAOA)"
+      },
+
+      "citations": ["grover1996", "nielsen_chuang2010"],
+      "examples": [
+        "Search database of 1 million records",
+        "Collision finding in hash functions",
+        "Satisfiability search (3-SAT)"
+      ],
+      "related_problems": ["satisfiability", "collision_finding"]
+    },
+
+    "traveling_salesman": {
+      "problem_class_id": "traveling_salesman",
+      "name": "Traveling Salesman Problem",
+      "description": "Find shortest route visiting all cities exactly once",
+      "category": "optimization",
+
+      "quantum_status": {
+        "advantage_proven": false,
+        "advantage_type": "none",
+        "confidence_level": "none",
+        "caveats": [
+          "NP-hard problem; no polynomial quantum algorithm known",
+          "QAOA provides heuristic approach with no proven speedup",
+          "Grover gives √ speedup on brute force, still exponential"
+        ]
+      },
+
+      "quantum_approaches": [
+        {
+          "algorithm_id": "qaoa_tsp",
+          "status": "experimental",
+          "applicability": "Small instances (N<20) for research; heuristic only"
+        },
+        {
+          "algorithm_id": "grover_tsp",
+          "status": "theoretical",
+          "applicability": "Gives O(√(N!)) vs O(N!), still exponential and impractical"
+        }
+      ],
+
+      "classical_baseline": {
+        "best_known_algorithm": "Concorde solver (branch-and-cut), LKH heuristic",
+        "complexity": "O(N! / 2N) exact; heuristics find near-optimal in O(N^2) to O(N^3)",
+        "practical_performance": "Concorde solves 1000+ city problems optimally; LKH gets 1-2% from optimal",
+        "state_of_art_tools": ["Concorde", "LKH", "Google OR-Tools", "Gurobi"]
+      },
+
+      "breakeven_analysis": {
+        "problem_size_threshold": "Never (no proven quantum advantage)",
+        "current_achievability": "unknown",
+        "required_qubits": "N/A (no viable quantum approach)",
+        "required_quality": "N/A",
+        "estimated_timeline": "No timeline (may be fundamentally classical-favored)"
+      },
+
+      "recommendations": {
+        "when_to_use_quantum": "Only for research exploration of QAOA on tiny instances (N<10)",
+        "when_to_use_classical": "All practical applications; classical solvers are highly mature",
+        "hybrid_approaches": "QAOA is quantum-classical hybrid but no proven advantage over pure classical"
+      },
+
+      "citations": ["aaronson2008", "lucas2014", "farhi2014"],
+      "examples": [
+        "Route optimization for delivery trucks (use classical)",
+        "Circuit board drilling (use classical)",
+        "Small toy problems for QAOA research (N=4-6 cities)"
+      ],
+      "related_problems": ["vehicle_routing", "max_cut", "graph_coloring"]
+    },
+
+    "quantum_chemistry": {
+      "problem_class_id": "quantum_chemistry",
+      "name": "Quantum Chemistry Simulation",
+      "description": "Simulate molecular systems to find ground states, reaction dynamics",
+      "category": "simulation",
+
+      "quantum_status": {
+        "advantage_proven": true,
+        "advantage_type": "exponential",
+        "confidence_level": "proven",
+        "caveats": [
+          "Advantage is for strongly correlated systems",
+          "Weakly correlated systems may be better on classical (DFT, coupled cluster)",
+          "Encoding molecular Hamiltonian into qubits has overhead",
+          "NISQ-era approaches (VQE) are heuristic"
+        ]
+      },
+
+      "quantum_approaches": [
+        {
+          "algorithm_id": "vqe",
+          "status": "standard",
+          "applicability": "NISQ-era variational approach for small molecules"
+        },
+        {
+          "algorithm_id": "phase_estimation_chemistry",
+          "status": "standard",
+          "applicability": "Fault-tolerant era; optimal asymptotic performance"
+        }
+      ],
+
+      "classical_baseline": {
+        "best_known_algorithm": "Coupled Cluster (CCSD(T)) for accuracy; DFT for speed",
+        "complexity": "Exponential in system size for exact methods; polynomial for DFT (approximate)",
+        "practical_performance": "~30-50 strongly correlated electrons is limit for exact classical",
+        "state_of_art_tools": ["Gaussian", "ORCA", "PySCF", "Q-Chem"]
+      },
+
+      "breakeven_analysis": {
+        "problem_size_threshold": "~50+ electrons for strongly correlated systems",
+        "current_achievability": "achievable_now",
+        "required_qubits": "Dozens for small molecules (H2, LiH); hundreds for drug-like molecules",
+        "required_quality": "VQE on NISQ devices (~100 qubits, moderate errors); phase estimation needs error correction",
+        "estimated_timeline": "Now for research on small molecules; 2025-2030 for practical chemistry"
+      },
+
+      "recommendations": {
+        "when_to_use_quantum": "Strongly correlated systems, transition metals, bond breaking; research on small molecules now",
+        "when_to_use_classical": "Weakly correlated organic molecules; when DFT accuracy sufficient",
+        "hybrid_approaches": "VQE (quantum for trial state, classical for optimization) is standard NISQ approach"
+      },
+
+      "citations": ["cao2019", "mcardle2020", "peruzzo2014"],
+      "examples": [
+        "H2 molecule ground state (benchmark, 2 qubits)",
+        "LiH bond dissociation (4-12 qubits)",
+        "Transition metal catalysts (frontier application)"
+      ],
+      "related_problems": ["materials_simulation", "drug_discovery"]
+    }
+  },
+
+  "quantum_algorithms": {
+    "shors_algorithm": {
+      "algorithm_id": "shors_algorithm",
+      "name": "Shor's Algorithm",
+      "aliases": ["Quantum Factoring Algorithm"],
+      "year_discovered": 1994,
+      "inventors": ["Peter Shor"],
+
+      "speedup": {
+        "type": "exponential",
+        "classical_complexity": "exp(O((log N)^(1/3) * (log log N)^(2/3)))",
+        "quantum_complexity": "O((log N)^2 * log log N * log log log N)",
+        "proven": true,
+        "proof_sketch": "Reduces factoring to period finding; quantum Fourier transform finds period in polynomial time",
+        "assumptions": ["Efficient modular exponentiation circuit", "Quantum Fourier Transform"]
+      },
+
+      "resource_requirements": {
+        "qubits": {
+          "formula": "2 * log2(N) + O(log log N) for modular arithmetic",
+          "scaling": "O(log N)",
+          "example_values": [
+            {"problem_size": "N=15", "qubits_needed": "~8"},
+            {"problem_size": "N=RSA-2048", "qubits_needed": "~4000 logical"}
+          ]
+        },
+        "circuit_depth": {
+          "formula": "O((log N)^3) for full algorithm",
+          "scaling": "O((log N)^3)",
+          "example_values": [
+            {"problem_size": "N=RSA-2048", "depth": "~10^9 gates"}
+          ]
+        },
+        "gate_count": {
+          "total_gates": "O((log N)^3)",
+          "two_qubit_gates": "O((log N)^3)",
+          "example_values": []
+        },
+        "ancilla_qubits": "~log N for modular arithmetic",
+        "classical_processing": "Continued fractions algorithm (polynomial time)"
+      },
+
+      "error_requirements": {
+        "error_correction_needed": true,
+        "required_logical_error_rate": 1e-15,
+        "fault_tolerance_threshold": "Physical error rate < 10^-3 for surface codes",
+        "coherence_time_minimum": "Must sustain ~10^9 gates for RSA-2048"
+      },
+
+      "hardware_constraints": {
+        "connectivity": "any",
+        "native_gates": ["arbitrary single-qubit rotations", "CNOT or equivalent"],
+        "measurement_requirements": "Standard projective measurement",
+        "special_requirements": ["Efficient QFT implementation", "Modular exponentiation circuit"]
+      },
+
+      "variants": [
+        {
+          "variant_name": "Space-efficient Shor's",
+          "description": "Reduces qubit count using sequential QFT",
+          "trade_offs": "Fewer qubits but increased circuit depth"
+        }
+      ],
+
+      "implementations": [
+        {
+          "framework": "Qiskit",
+          "module": "qiskit.algorithms.Shor",
+          "status": "official",
+          "url": "https://qiskit.org/documentation/stubs/qiskit.algorithms.Shor.html"
+        }
+      ],
+
+      "known_limitations": [
+        "Requires fault-tolerant quantum computer for cryptographically relevant sizes",
+        "Large constant factors make small instances impractical",
+        "Classical post-processing can fail (low probability)"
+      ],
+      "practical_considerations": [
+        "Only demonstrated on tiny instances (N=15, N=21) to date",
+        "RSA-2048 requires millions of physical qubits with error correction",
+        "Not a threat to current cryptography until ~2030s at earliest"
+      ],
+
+      "citations": ["shor1994", "gidney2019"],
+      "related_algorithms": ["quantum_phase_estimation", "discrete_log_algorithm"]
+    },
+
+    "grovers_algorithm": {
+      "algorithm_id": "grovers_algorithm",
+      "name": "Grover's Algorithm",
+      "aliases": ["Quantum Search Algorithm", "Amplitude Amplification"],
+      "year_discovered": 1996,
+      "inventors": ["Lov Grover"],
+
+      "speedup": {
+        "type": "quadratic",
+        "classical_complexity": "O(N)",
+        "quantum_complexity": "O(√N)",
+        "proven": true,
+        "proof_sketch": "Amplitude amplification iteratively increases amplitude of marked states; proven optimal for unstructured search",
+        "assumptions": ["Efficient quantum oracle for marking solution", "Oracle doesn't dominate complexity"]
+      },
+
+      "resource_requirements": {
+        "qubits": {
+          "formula": "log2(N) + ancilla for oracle",
+          "scaling": "O(log N)",
+          "example_values": [
+            {"problem_size": "N=1024", "qubits_needed": "10 + oracle"},
+            {"problem_size": "N=1M", "qubits_needed": "20 + oracle"}
+          ]
+        },
+        "circuit_depth": {
+          "formula": "π/4 * √N iterations",
+          "scaling": "O(√N)",
+          "example_values": [
+            {"problem_size": "N=1024", "depth": "~25 iterations"},
+            {"problem_size": "N=1M", "depth": "~785 iterations"}
+          ]
+        },
+        "gate_count": {
+          "total_gates": "O(√N * oracle_complexity)",
+          "two_qubit_gates": "Depends on oracle",
+          "example_values": []
+        },
+        "ancilla_qubits": "Depends on oracle implementation",
+        "classical_processing": "Minimal (measurement readout)"
+      },
+
+      "error_requirements": {
+        "error_correction_needed": false,
+        "required_logical_error_rate": null,
+        "fault_tolerance_threshold": "NISQ-compatible if √N iterations fits in coherence time",
+        "coherence_time_minimum": "Must sustain O(√N) oracle calls"
+      },
+
+      "hardware_constraints": {
+        "connectivity": "Depends on oracle",
+        "native_gates": ["H", "X", "multi-controlled gates"],
+        "measurement_requirements": "Standard projective measurement",
+        "special_requirements": ["Efficient oracle implementation is critical"]
+      },
+
+      "variants": [
+        {
+          "variant_name": "Quantum Amplitude Amplification",
+          "description": "Generalization to amplify any amplitude, not just search",
+          "trade_offs": "More general but same complexity"
+        },
+        {
+          "variant_name": "Fixed-point Grover",
+          "description": "Doesn't overshoot solution",
+          "trade_offs": "Slightly more iterations but more robust"
+        }
+      ],
+
+      "implementations": [
+        {
+          "framework": "Qiskit",
+          "module": "qiskit.algorithms.Grover",
+          "status": "official",
+          "url": "https://qiskit.org/documentation/stubs/qiskit.algorithms.Grover.html"
+        },
+        {
+          "framework": "Cirq",
+          "module": "Community implementations",
+          "status": "community",
+          "url": "https://quantumai.google/cirq"
+        }
+      ],
+
+      "known_limitations": [
+        "Only quadratic speedup may not justify quantum overhead",
+        "Oracle complexity can dominate total complexity",
+        "Requires knowing number of solutions (or use amplitude estimation)"
+      ],
+      "practical_considerations": [
+        "Most practical value in subroutines of larger algorithms",
+        "Direct application to database search unlikely to be practical",
+        "Oracle design is the hard part for real problems"
+      ],
+
+      "citations": ["grover1996", "nielsen_chuang2010", "brassard2002"],
+      "related_algorithms": ["amplitude_estimation", "quantum_counting"]
+    },
+
+    "vqe": {
+      "algorithm_id": "vqe",
+      "name": "Variational Quantum Eigensolver",
+      "aliases": ["VQE"],
+      "year_discovered": 2014,
+      "inventors": ["Alberto Peruzzo", "Jarrod McClean", "Alán Aspuru-Guzik"],
+
+      "speedup": {
+        "type": "exponential",
+        "classical_complexity": "Exponential for strongly correlated systems",
+        "quantum_complexity": "Heuristic; polynomial iterations but no proven complexity",
+        "proven": false,
+        "proof_sketch": "Not proven; heuristic quantum-classical hybrid",
+        "assumptions": [
+          "Ansatz can represent ground state",
+          "Classical optimizer finds global minimum",
+          "Measurement statistics converge quickly"
+        ]
+      },
+
+      "resource_requirements": {
+        "qubits": {
+          "formula": "Number of orbitals (problem-dependent)",
+          "scaling": "O(number of orbitals)",
+          "example_values": [
+            {"problem_size": "H2", "qubits_needed": "2-4"},
+            {"problem_size": "H2O", "qubits_needed": "14-20"}
+          ]
+        },
+        "circuit_depth": {
+          "formula": "Depends on ansatz; hardware-efficient ansätze have shallow depth",
+          "scaling": "O(1) to O(n) depending on ansatz",
+          "example_values": []
+        },
+        "gate_count": {
+          "total_gates": "Moderate (NISQ-friendly)",
+          "two_qubit_gates": "O(n) to O(n^2) depending on ansatz",
+          "example_values": []
+        },
+        "ancilla_qubits": "Typically none",
+        "classical_processing": "Significant; optimization loop dominates runtime"
+      },
+
+      "error_requirements": {
+        "error_correction_needed": false,
+        "required_logical_error_rate": null,
+        "fault_tolerance_threshold": "NISQ-era algorithm; tolerates moderate noise",
+        "coherence_time_minimum": "Shallow circuits; coherence needs modest"
+      },
+
+      "hardware_constraints": {
+        "connectivity": "Hardware-efficient ansätze designed for limited connectivity",
+        "native_gates": ["Parametric rotations (RX, RY, RZ)", "CNOT or equivalent"],
+        "measurement_requirements": "Many measurements to estimate energy expectation",
+        "special_requirements": ["Fast classical-quantum feedback loop helpful"]
+      },
+
+      "variants": [
+        {
+          "variant_name": "ADAPT-VQE",
+          "description": "Grows ansatz adaptively",
+          "trade_offs": "Better convergence but more measurements"
+        },
+        {
+          "variant_name": "Hardware-efficient VQE",
+          "description": "Ansatz tailored to hardware topology",
+          "trade_offs": "Runs on real hardware but may lack expressibility"
+        }
+      ],
+
+      "implementations": [
+        {
+          "framework": "Qiskit",
+          "module": "qiskit_nature.algorithms.VQE",
+          "status": "official",
+          "url": "https://qiskit.org/ecosystem/nature/"
+        },
+        {
+          "framework": "PennyLane",
+          "module": "pennylane.VQE",
+          "status": "official",
+          "url": "https://pennylane.ai/"
+        }
+      ],
+
+      "known_limitations": [
+        "No proven speedup; heuristic approach",
+        "Can get stuck in local minima (barren plateaus)",
+        "Ansatz expressibility vs trainability tradeoff",
+        "Many measurements needed for accurate energy estimation"
+      ],
+      "practical_considerations": [
+        "Most successful NISQ-era quantum algorithm to date",
+        "Has been run on real hardware for small molecules",
+        "Classical optimizer choice is critical",
+        "Noise mitigation techniques essential for accuracy"
+      ],
+
+      "citations": ["peruzzo2014", "mcardle2020", "cao2019"],
+      "related_algorithms": ["qaoa", "quantum_phase_estimation"]
+    }
+  },
+
+  "citations": {
+    "shor1994": {
+      "citation_id": "shor1994",
+      "type": "paper",
+      "authors": ["Peter W. Shor"],
+      "title": "Algorithms for quantum computation: discrete logarithms and factoring",
+      "year": 1994,
+      "venue": "IEEE Symposium on Foundations of Computer Science",
+      "doi": "10.1109/SFCS.1994.365700",
+      "arxiv": null,
+      "url": "https://ieeexplore.ieee.org/document/365700",
+      "key_results": [
+        "First polynomial-time quantum algorithm for integer factorization",
+        "Exponential speedup over classical algorithms",
+        "Broke RSA cryptography assumption"
+      ],
+      "citation_count": 10000,
+      "peer_reviewed": true
+    },
+
+    "grover1996": {
+      "citation_id": "grover1996",
+      "type": "paper",
+      "authors": ["Lov K. Grover"],
+      "title": "A fast quantum mechanical algorithm for database search",
+      "year": 1996,
+      "venue": "ACM Symposium on Theory of Computing",
+      "doi": "10.1145/237814.237866",
+      "arxiv": "quant-ph/9605043",
+      "url": "https://arxiv.org/abs/quant-ph/9605043",
+      "key_results": [
+        "Quadratic speedup for unstructured search",
+        "Proven optimal (BBBV theorem)",
+        "O(√N) quantum vs O(N) classical"
+      ],
+      "citation_count": 8000,
+      "peer_reviewed": true
+    },
+
+    "aaronson2008": {
+      "citation_id": "aaronson2008",
+      "type": "paper",
+      "authors": ["Scott Aaronson"],
+      "title": "The Limits of Quantum Computers",
+      "year": 2008,
+      "venue": "Scientific American",
+      "doi": null,
+      "arxiv": null,
+      "url": "https://www.scientificamerican.com/article/the-limits-of-quantum-computers/",
+      "key_results": [
+        "Quantum computers don't solve NP-complete problems efficiently",
+        "Explains why some problems remain hard even for quantum",
+        "Accessible explanation of quantum limits"
+      ],
+      "citation_count": 500,
+      "peer_reviewed": false
+    },
+
+    "nielsen_chuang2010": {
+      "citation_id": "nielsen_chuang2010",
+      "type": "book",
+      "authors": ["Michael A. Nielsen", "Isaac L. Chuang"],
+      "title": "Quantum Computation and Quantum Information",
+      "year": 2010,
+      "venue": "Cambridge University Press",
+      "doi": "10.1017/CBO9780511976667",
+      "arxiv": null,
+      "url": "http://mmrc.amss.cas.cn/tlb/201702/W020170224608149940643.pdf",
+      "key_results": [
+        "Canonical quantum computing textbook",
+        "Comprehensive coverage of quantum algorithms",
+        "Standard reference for Grover, Shor, and more"
+      ],
+      "citation_count": 50000,
+      "peer_reviewed": true
+    },
+
+    "cao2019": {
+      "citation_id": "cao2019",
+      "type": "paper",
+      "authors": ["Yudong Cao", "Jonathan Romero", "et al."],
+      "title": "Quantum chemistry in the age of quantum computing",
+      "year": 2019,
+      "venue": "Chemical Reviews",
+      "doi": "10.1021/acs.chemrev.8b00803",
+      "arxiv": "1812.09976",
+      "url": "https://arxiv.org/abs/1812.09976",
+      "key_results": [
+        "Comprehensive review of quantum algorithms for chemistry",
+        "Comparison of VQE, QPE, and classical methods",
+        "Resource requirements for practical chemistry"
+      ],
+      "citation_count": 1500,
+      "peer_reviewed": true
+    },
+
+    "peruzzo2014": {
+      "citation_id": "peruzzo2014",
+      "type": "paper",
+      "authors": ["Alberto Peruzzo", "Jarrod McClean", "et al."],
+      "title": "A variational eigenvalue solver on a photonic quantum processor",
+      "year": 2014,
+      "venue": "Nature Communications",
+      "doi": "10.1038/ncomms5213",
+      "arxiv": "1304.3061",
+      "url": "https://arxiv.org/abs/1304.3061",
+      "key_results": [
+        "First demonstration of VQE",
+        "Hybrid quantum-classical algorithm",
+        "NISQ-era friendly approach"
+      ],
+      "citation_count": 2000,
+      "peer_reviewed": true
+    },
+
+    "gidney2019": {
+      "citation_id": "gidney2019",
+      "type": "paper",
+      "authors": ["Craig Gidney", "Martin Ekerå"],
+      "title": "How to factor 2048 bit RSA integers in 8 hours using 20 million noisy qubits",
+      "year": 2019,
+      "venue": "arXiv preprint",
+      "doi": null,
+      "arxiv": "1905.09749",
+      "url": "https://arxiv.org/abs/1905.09749",
+      "key_results": [
+        "Detailed resource estimates for Shor's algorithm",
+        "20M physical qubits for RSA-2048",
+        "8 hour runtime estimate with error correction"
+      ],
+      "citation_count": 500,
+      "peer_reviewed": false
+    },
+
+    "fowler2012": {
+      "citation_id": "fowler2012",
+      "type": "paper",
+      "authors": ["Austin G. Fowler", "Matteo Mariantoni", "et al."],
+      "title": "Surface codes: Towards practical large-scale quantum computation",
+      "year": 2012,
+      "venue": "Physical Review A",
+      "doi": "10.1103/PhysRevA.86.032324",
+      "arxiv": "1208.0928",
+      "url": "https://arxiv.org/abs/1208.0928",
+      "key_results": [
+        "Practical error correction with surface codes",
+        "Resource overhead estimates",
+        "Path to fault-tolerant quantum computing"
+      ],
+      "citation_count": 3000,
+      "peer_reviewed": true
+    },
+
+    "lucas2014": {
+      "citation_id": "lucas2014",
+      "type": "paper",
+      "authors": ["Andrew Lucas"],
+      "title": "Ising formulations of many NP problems",
+      "year": 2014,
+      "venue": "Frontiers in Physics",
+      "doi": "10.3389/fphy.2014.00005",
+      "arxiv": "1302.5843",
+      "url": "https://arxiv.org/abs/1302.5843",
+      "key_results": [
+        "Shows how to map NP problems to Ising models",
+        "Relevant for quantum annealing and QAOA",
+        "Does NOT prove quantum advantage for NP problems"
+      ],
+      "citation_count": 1000,
+      "peer_reviewed": true
+    },
+
+    "farhi2014": {
+      "citation_id": "farhi2014",
+      "type": "paper",
+      "authors": ["Edward Farhi", "Jeffrey Goldstone", "Sam Gutmann"],
+      "title": "A Quantum Approximate Optimization Algorithm",
+      "year": 2014,
+      "venue": "arXiv preprint",
+      "doi": null,
+      "arxiv": "1411.4028",
+      "url": "https://arxiv.org/abs/1411.4028",
+      "key_results": [
+        "Introduced QAOA for combinatorial optimization",
+        "Heuristic approach with no proven speedup",
+        "Popular NISQ-era algorithm"
+      ],
+      "citation_count": 2500,
+      "peer_reviewed": false
+    },
+
+    "mcardle2020": {
+      "citation_id": "mcardle2020",
+      "type": "paper",
+      "authors": ["Sam McArdle", "Suguru Endo", "et al."],
+      "title": "Quantum computational chemistry",
+      "year": 2020,
+      "venue": "Reviews of Modern Physics",
+      "doi": "10.1103/RevModPhys.92.015003",
+      "arxiv": "1808.10402",
+      "url": "https://arxiv.org/abs/1808.10402",
+      "key_results": [
+        "Comprehensive review of quantum chemistry algorithms",
+        "Error requirements and resource estimates",
+        "Comparison of different approaches"
+      ],
+      "citation_count": 1000,
+      "peer_reviewed": true
+    },
+
+    "brassard2002": {
+      "citation_id": "brassard2002",
+      "type": "paper",
+      "authors": ["Gilles Brassard", "Peter Høyer", "et al."],
+      "title": "Quantum Amplitude Amplification and Estimation",
+      "year": 2002,
+      "venue": "Contemporary Mathematics",
+      "doi": "10.1090/conm/305/05215",
+      "arxiv": "quant-ph/0005055",
+      "url": "https://arxiv.org/abs/quant-ph/0005055",
+      "key_results": [
+        "Generalization of Grover's algorithm",
+        "Amplitude estimation for counting",
+        "Theoretical framework for amplitude amplification"
+      ],
+      "citation_count": 2000,
+      "peer_reviewed": true
+    }
+  },
+
+  "hardware_eras": {
+    "nisq": {
+      "era_id": "nisq",
+      "name": "NISQ Era (Noisy Intermediate-Scale Quantum)",
+      "timeframe": "2020-2028",
+      "capabilities": {
+        "typical_qubit_count": {"min": 50, "max": 1000},
+        "physical_error_rate": {"typical": 0.001, "best": 0.0001},
+        "coherence_time_t1": "50-200 microseconds",
+        "coherence_time_t2": "30-150 microseconds",
+        "gate_fidelity": {"single_qubit": 0.999, "two_qubit": 0.99},
+        "connectivity": "Limited (linear, heavy-hex, etc.)",
+        "error_correction": false
+      },
+      "example_systems": [
+        {
+          "name": "IBM Heron",
+          "provider": "IBM",
+          "year": 2023,
+          "specs": {"qubits": 133, "error_rate": 0.0001}
+        },
+        {
+          "name": "Google Sycamore",
+          "provider": "Google",
+          "year": 2019,
+          "specs": {"qubits": 53, "error_rate": 0.001}
+        }
+      ]
+    },
+
+    "early_fault_tolerant": {
+      "era_id": "early_fault_tolerant",
+      "name": "Early Fault-Tolerant Era",
+      "timeframe": "2028-2035 (estimated)",
+      "capabilities": {
+        "typical_qubit_count": {"min": 1000, "max": 100000},
+        "physical_error_rate": {"typical": 0.0001, "best": 0.00001},
+        "coherence_time_t1": "200-1000 microseconds",
+        "coherence_time_t2": "150-800 microseconds",
+        "gate_fidelity": {"single_qubit": 0.9999, "two_qubit": 0.999},
+        "connectivity": "Improved connectivity",
+        "error_correction": true
+      },
+      "example_systems": [
+        {
+          "name": "Hypothetical early FT system",
+          "provider": "Various",
+          "year": 2030,
+          "specs": {"logical_qubits": 100, "physical_qubits": 10000}
+        }
+      ]
+    },
+
+    "mature_fault_tolerant": {
+      "era_id": "mature_fault_tolerant",
+      "name": "Mature Fault-Tolerant Era",
+      "timeframe": "2035+ (highly speculative)",
+      "capabilities": {
+        "typical_qubit_count": {"min": 100000, "max": 10000000},
+        "physical_error_rate": {"typical": 0.00001, "best": 0.000001},
+        "coherence_time_t1": ">1 millisecond",
+        "coherence_time_t2": ">1 millisecond",
+        "gate_fidelity": {"single_qubit": 0.99999, "two_qubit": 0.9999},
+        "connectivity": "High connectivity or all-to-all",
+        "error_correction": true
+      },
+      "example_systems": [
+        {
+          "name": "Hypothetical mature FT system",
+          "provider": "Unknown",
+          "year": 2040,
+          "specs": {"logical_qubits": 10000, "physical_qubits": 10000000}
+        }
+      ]
+    }
+  }
+}
