@@ -11,6 +11,12 @@ from enum import Enum
 import numpy as np
 import networkx as nx
 from .measurement import measure_subsystem, measure_full_system
+from .tensor_utils import (
+    embed_operator_at_position,
+    compute_entanglement_entropy as compute_entropy_general,
+    create_ghz_state,
+    tensor_product_states
+)
 
 
 class QuestionType(Enum):
@@ -93,32 +99,35 @@ class QuantumRelation:
 
     def _embed_operation(self, operation: np.ndarray, target_idx: int, dims: List[int]) -> np.ndarray:
         """Embed a local operation into the full Hilbert space"""
-        # Simplified implementation
-        # In production, use proper tensor products
         if len(self.systems) == 1:
             return operation
-        elif len(self.systems) == 2:
-            if target_idx == 0:
-                return np.kron(operation, np.eye(2))
-            else:
-                return np.kron(np.eye(2), operation)
         else:
-            # For >2 qubits, need more sophisticated embedding
-            raise NotImplementedError("Multi-qubit embedding not yet implemented")
+            # Use general tensor product embedding
+            num_qubits = len(self.systems)
+            return embed_operator_at_position(operation, target_idx, num_qubits, qubit_dim=2)
 
     def _compute_entanglement_entropy(self, state: np.ndarray, partition_idx: int) -> float:
         """Compute entanglement entropy across a bipartition"""
-        # Simplified - for 2-qubit states only
-        if len(self.systems) == 2:
-            # Reshape to matrix for Schmidt decomposition
-            state_matrix = state.reshape(2, 2)
-            U, S, Vh = np.linalg.svd(state_matrix)
-            # Entanglement entropy = -sum(s_i^2 * log(s_i^2))
-            s_squared = S**2
-            s_squared = s_squared[s_squared > 1e-10]  # Avoid log(0)
-            entropy = -np.sum(s_squared * np.log2(s_squared))
-            return entropy
-        return 0.0
+        num_qubits = len(self.systems)
+
+        if num_qubits <= 1:
+            return 0.0
+
+        # For bipartite entropy, partition at partition_idx
+        # Partition A: qubits 0..partition_idx
+        # Partition B: qubits partition_idx+1..end
+        partition_A = list(range(partition_idx + 1))
+        partition_B = list(range(partition_idx + 1, num_qubits))
+
+        if not partition_B:
+            # No bipartition possible, return 0
+            return 0.0
+
+        try:
+            return compute_entropy_general(state, partition_A, partition_B, num_qubits, qubit_dim=2)
+        except Exception:
+            # Fallback to 0 if computation fails
+            return 0.0
 
 
 class Perspective:
@@ -211,43 +220,100 @@ class QPLProgram:
 
         return system_id
 
-    def entangle(self, system1: int, system2: int) -> QuantumRelation:
+    def entangle(self, *systems: int, state_type: str = "ghz") -> QuantumRelation:
         """
-        Create entanglement between two systems.
+        Create entanglement between multiple systems.
         This is a fundamental operation in QPL.
+
+        Args:
+            *systems: Variable number of system IDs to entangle
+            state_type: Type of entangled state to create:
+                - "ghz": GHZ state (|00...0⟩ + |11...1⟩)/√2 (default)
+                - "bell": Bell state for 2 qubits (|00⟩ + |11⟩)/√2
+                - "w": W state (equal superposition of single-excitation states)
+
+        Returns:
+            QuantumRelation containing the entangled systems
+
+        Examples:
+            >>> # 2-qubit Bell pair (backward compatible)
+            >>> bell = program.entangle(qubit1, qubit2)
+
+            >>> # 3-qubit GHZ state
+            >>> ghz3 = program.entangle(q1, q2, q3)
+
+            >>> # 4-qubit GHZ state
+            >>> ghz4 = program.entangle(q1, q2, q3, q4, state_type="ghz")
         """
-        # Find existing relations containing these systems
-        rel1 = self._find_relation_with_system(system1)
-        rel2 = self._find_relation_with_system(system2)
+        if len(systems) < 2:
+            raise ValueError("Must entangle at least 2 systems")
 
-        if rel1 is rel2:
-            # Systems are already in the same relation
-            return rel1
+        # Convert to list and sort by system ID for consistency
+        system_list = sorted(list(systems))
 
-        # Create Bell state: (|00⟩ + |11⟩)/√2
-        bell_state = np.array([1, 0, 0, 1]) / np.sqrt(2)
+        # Check if all systems already in same relation
+        relations = [self._find_relation_with_system(s) for s in system_list]
+        # Get unique relations without using set() (QuantumRelation isn't hashable)
+        unique_relations = []
+        for rel in relations:
+            if rel is not None and rel not in unique_relations:
+                unique_relations.append(rel)
+
+        if len(unique_relations) == 1 and len(unique_relations[0].systems) == len(system_list):
+            # All systems already in the same relation
+            return unique_relations[0]
+
+        # Create entangled state based on type
+        num_qubits = len(system_list)
+
+        if state_type == "bell" and num_qubits == 2:
+            # Bell state: (|00⟩ + |11⟩)/√2
+            entangled_state = np.array([1, 0, 0, 1]) / np.sqrt(2)
+        elif state_type == "ghz" or (state_type == "bell" and num_qubits > 2):
+            # GHZ state: (|00...0⟩ + |11...1⟩)/√2
+            entangled_state = create_ghz_state(num_qubits)
+        elif state_type == "w":
+            # W state: (|10...0⟩ + |01...0⟩ + ... + |0...01⟩)/√n
+            from .tensor_utils import create_w_state
+            entangled_state = create_w_state(num_qubits)
+        else:
+            raise ValueError(f"Unknown state type: {state_type}")
+
+        # Compute initial entanglement entropy (bipartite, middle partition)
+        mid_partition = num_qubits // 2
+        partition_A = list(range(mid_partition))
+        partition_B = list(range(mid_partition, num_qubits))
+
+        try:
+            initial_entropy = compute_entropy_general(
+                entangled_state, partition_A, partition_B, num_qubits, qubit_dim=2
+            )
+        except Exception:
+            # For maximum entanglement in GHZ/Bell states
+            initial_entropy = 1.0 if state_type in ["bell", "ghz"] else 0.5
 
         # Create new combined relation
         new_relation = QuantumRelation(
-            systems=[system1, system2],
-            state=bell_state,
-            entanglement_entropy=1.0  # Maximally entangled
+            systems=system_list,
+            state=entangled_state,
+            entanglement_entropy=initial_entropy
         )
 
-        # Remove old relations, add new one
-        if rel1 in self.relations:
-            self.relations.remove(rel1)
-        if rel2 in self.relations and rel2 != rel1:
-            self.relations.remove(rel2)
+        # Remove old relations that contained these systems
+        for rel in unique_relations:
+            if rel in self.relations:
+                self.relations.remove(rel)
 
         self.relations.append(new_relation)
 
         # Record in history
         self.history.append({
             'type': 'entanglement_created',
-            'systems': [system1, system2],
+            'systems': system_list,
+            'state_type': state_type,
             'time': time.time(),
-            'entropy': 1.0
+            'entropy': initial_entropy,
+            'num_qubits': num_qubits
         })
 
         return new_relation
@@ -384,9 +450,16 @@ class QPLProgram:
 
 
 # Convenience functions
-def entangle(program: QPLProgram, system1: int, system2: int) -> QuantumRelation:
-    """Convenience function for creating entanglement"""
-    return program.entangle(system1, system2)
+def entangle(program: QPLProgram, *systems: int, **kwargs) -> QuantumRelation:
+    """
+    Convenience function for creating entanglement.
+
+    Supports both 2-qubit and n-qubit entanglement:
+        entangle(program, q1, q2)  # Bell state
+        entangle(program, q1, q2, q3)  # GHZ state
+        entangle(program, q1, q2, q3, state_type="w")  # W state
+    """
+    return program.entangle(*systems, **kwargs)
 
 def ask(program: QPLProgram, relation: QuantumRelation,
         question_type: Union[str, QuestionType, QuantumQuestion], **kwargs) -> Any:

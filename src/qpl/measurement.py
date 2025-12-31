@@ -6,6 +6,7 @@ Handles multi-qubit and partial measurements in a conceptually clear way.
 
 import numpy as np
 from typing import Tuple, List, Optional
+from .tensor_utils import embed_operator_at_position, partial_trace
 
 
 def measure_subsystem(state: np.ndarray,
@@ -100,9 +101,29 @@ def compute_subsystem_probabilities(state: np.ndarray,
 
         probabilities = np.array([prob_0, prob_1])
     else:
-        # For more qubits, need general implementation
-        # For now, raise NotImplementedError
-        raise NotImplementedError(f"Measurement of {num_qubits}-qubit systems not yet implemented")
+        # General case: n-qubit measurement
+        # Apply basis transformation by embedding the basis change operator
+        if not np.allclose(basis, np.eye(2)):
+            # Transform the state: apply U† to the measured subsystem
+            U_dagger = basis.T.conj()
+            full_operator = embed_operator_at_position(U_dagger, subsystem_idx, num_qubits, qubit_dim=2)
+            transformed_state = full_operator @ state
+        else:
+            transformed_state = state
+
+        # Compute reduced density matrix by tracing out all other qubits
+        rho = np.outer(transformed_state, transformed_state.conj())
+
+        # Reshape to tensor form for partial trace
+        # We want to keep only the subsystem we're measuring
+        keep_qubits = [subsystem_idx]
+        trace_out_qubits = [i for i in range(num_qubits) if i != subsystem_idx]
+
+        # Partial trace to get reduced density matrix of measured qubit
+        rho_reduced = partial_trace(transformed_state, keep_qubits, num_qubits, qubit_dim=2)
+
+        # Extract probabilities from diagonal
+        probabilities = np.real(np.diag(rho_reduced))
 
     # Normalize (should already be normalized, but just in case)
     return probabilities / np.sum(probabilities)
@@ -179,7 +200,39 @@ def collapse_subsystem(state: np.ndarray,
 
         return collapsed_state
     else:
-        raise NotImplementedError(f"Collapse of {num_qubits}-qubit systems not yet implemented")
+        # General case: n-qubit collapse
+        # Apply basis transformation if needed
+        if not np.allclose(basis, np.eye(2)):
+            U_dagger = basis.T.conj()
+            full_operator = embed_operator_at_position(U_dagger, subsystem_idx, num_qubits, qubit_dim=2)
+            transformed_state = full_operator @ state
+        else:
+            transformed_state = state
+
+        # Create projection operator for the measurement outcome
+        # P = |outcome⟩⟨outcome| embedded at subsystem_idx
+        projector_local = np.zeros((2, 2))
+        projector_local[outcome, outcome] = 1.0
+
+        # Embed projector in full space
+        projector = embed_operator_at_position(projector_local, subsystem_idx, num_qubits, qubit_dim=2)
+
+        # Apply projector to collapse state
+        collapsed_transformed = projector @ transformed_state
+
+        # Transform back to computational basis if needed
+        if not np.allclose(basis, np.eye(2)):
+            full_operator_forward = embed_operator_at_position(basis, subsystem_idx, num_qubits, qubit_dim=2)
+            collapsed_state = full_operator_forward @ collapsed_transformed
+        else:
+            collapsed_state = collapsed_transformed
+
+        # Normalize
+        norm = np.linalg.norm(collapsed_state)
+        if norm > 1e-10:
+            collapsed_state = collapsed_state / norm
+
+        return collapsed_state
 
 
 def measure_full_system(state: np.ndarray, basis: np.ndarray) -> Tuple[int, np.ndarray]:
