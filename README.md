@@ -80,11 +80,15 @@ pip install quantum-process-language
 - **Tensor product operations** for composition
 - Tested up to 5 qubits (32-dimensional Hilbert space)
 
-### 🚧 Stage 2 In Progress (Target: Q2 2026)
+### ✅ Stage 2 In Progress (January 2026)
 - **MBQC Compiler**: QPL → measurement patterns
-- **Graph state extraction** from QuantumRelation
-- **Photonic backend**: Integration with Strawberry Fields
-- **Tensor networks**: MPS/PEPS for efficient simulation
+- ✅ **Phase 1 Complete**: Graph state extraction from QuantumRelation
+  - Bell states → edge graphs
+  - GHZ states → star graphs  
+  - Automatic state type detection
+- 🚧 **Phase 2**: Measurement pattern generation
+- 🔜 **Phase 3**: Adaptive Pauli corrections
+- 🔜 **Photonic backend**: Integration with Strawberry Fields
 
 ## Features
 
