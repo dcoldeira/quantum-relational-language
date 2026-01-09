@@ -156,6 +156,15 @@ QPL is transitioning from educational project to **research-grade quantum compil
 - [Stage 1: Scaling to n-Qubit Relations](https://dcoldeira.github.io/posts/2025-12-31-qpl-stage-one/)
 - [Why QPL is Adopting MBQC](https://dcoldeira.github.io/posts/2026-01-10-mbqc-why/) (January 2026)
 
+## Related Projects
+
+### [Quantum Advantage Advisor](https://github.com/dcoldeira/quantum-advantage-advisor)
+**Reality-check tool:** Tells you whether quantum computing actually makes sense for your problem.
+- Evidence-based recommendations (no hype!)
+- Curated knowledge base of proven quantum advantages
+- Timeline-aware (NISQ vs fault-tolerant era)
+- Separate tool for anyone evaluating quantum vs classical computing
+
 ## Collaboration
 
 We're seeking:
