@@ -23,6 +23,14 @@ from .pattern_generation import (
     generate_rotation_pattern,
     combine_patterns,
 )
+from .adaptive_corrections import (
+    apply_pauli_correction,
+    compute_corrections,
+    generate_teleportation_pattern,
+    simulate_teleportation,
+    verify_teleportation_fidelity,
+    correction_truth_table,
+)
 
 __all__ = [
     # Data structures
@@ -41,4 +49,11 @@ __all__ = [
     'generate_pattern_from_relation',
     'generate_rotation_pattern',
     'combine_patterns',
+    # Adaptive corrections
+    'apply_pauli_correction',
+    'compute_corrections',
+    'generate_teleportation_pattern',
+    'simulate_teleportation',
+    'verify_teleportation_fidelity',
+    'correction_truth_table',
 ]
