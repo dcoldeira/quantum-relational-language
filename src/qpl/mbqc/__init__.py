@@ -14,12 +14,31 @@ Main components:
 
 from .measurement_pattern import MeasurementPattern, Measurement, Correction
 from .graph_extraction import extract_graph, analyze_entanglement_structure, visualize_graph
+from .pattern_generation import (
+    generate_bell_state_pattern,
+    generate_ghz_state_pattern,
+    generate_single_qubit_gate_pattern,
+    generate_pattern_from_graph,
+    generate_pattern_from_relation,
+    generate_rotation_pattern,
+    combine_patterns,
+)
 
 __all__ = [
+    # Data structures
     'MeasurementPattern',
-    'Measurement', 
+    'Measurement',
     'Correction',
+    # Graph extraction
     'extract_graph',
     'analyze_entanglement_structure',
     'visualize_graph',
+    # Pattern generation
+    'generate_bell_state_pattern',
+    'generate_ghz_state_pattern',
+    'generate_single_qubit_gate_pattern',
+    'generate_pattern_from_graph',
+    'generate_pattern_from_relation',
+    'generate_rotation_pattern',
+    'combine_patterns',
 ]
