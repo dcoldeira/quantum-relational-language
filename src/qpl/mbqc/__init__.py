@@ -22,6 +22,8 @@ from .pattern_generation import (
     generate_pattern_from_relation,
     generate_rotation_pattern,
     combine_patterns,
+    generate_cnot_pattern,
+    generate_cz_pattern,
 )
 from .adaptive_corrections import (
     apply_pauli_correction,
@@ -49,6 +51,8 @@ __all__ = [
     'generate_pattern_from_relation',
     'generate_rotation_pattern',
     'combine_patterns',
+    'generate_cnot_pattern',
+    'generate_cz_pattern',
     # Adaptive corrections
     'apply_pauli_correction',
     'compute_corrections',

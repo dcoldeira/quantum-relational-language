@@ -76,14 +76,14 @@ class Correction:
 class MeasurementPattern:
     """
     Complete MBQC measurement pattern for executing a quantum computation.
-    
+
     A measurement pattern consists of:
     1. Preparation: Initialize qubits in |+⟩ state
     2. Entanglement: Apply CZ gates to create cluster state
     3. Measurements: Measure qubits in specified bases with adaptive angles
     4. Corrections: Apply Pauli corrections based on measurement outcomes
     5. Output: Specify which qubits contain the final result
-    
+
     Attributes:
         preparation: List of qubit indices to prepare in |+⟩
         entanglement: List of (i, j) pairs for CZ gates
@@ -91,6 +91,7 @@ class MeasurementPattern:
         corrections: List of Correction objects for adaptive Pauli corrections
         output_qubits: List of qubit indices that contain computation result
         description: Human-readable description of what this pattern computes
+        metadata: Optional dictionary for storing additional information (e.g., state_type)
     """
     preparation: List[int]
     entanglement: List[Tuple[int, int]]
@@ -98,6 +99,7 @@ class MeasurementPattern:
     corrections: List[Correction] = field(default_factory=list)
     output_qubits: List[int] = field(default_factory=list)
     description: str = ""
+    metadata: dict = field(default_factory=dict)
     
     def __post_init__(self):
         """Validate pattern structure."""

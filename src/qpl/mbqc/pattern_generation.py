@@ -160,13 +160,20 @@ def generate_pattern_from_graph(graph: nx.Graph,
     if measurements is None:
         measurements = []
 
+    # Extract metadata from graph
+    metadata = {
+        'state_type': graph.graph.get('state_type', 'unknown'),
+        'num_qubits': graph.graph.get('num_qubits', len(preparation)),
+    }
+
     pattern = MeasurementPattern(
         preparation=preparation,
         entanglement=entanglement,
         measurements=measurements,
         corrections=[],
         output_qubits=preparation if not measurements else [],
-        description=graph.graph.get('description', 'Graph state pattern')
+        description=graph.graph.get('description', 'Graph state pattern'),
+        metadata=metadata
     )
 
     return pattern
@@ -298,3 +305,122 @@ def combine_patterns(pattern1: MeasurementPattern,
     )
 
     return combined
+
+
+def generate_cnot_pattern(control: int = 0, target: int = 1) -> MeasurementPattern:
+    """
+    Generate measurement pattern for CNOT gate.
+
+    CNOT is implemented in MBQC using a 4-qubit cluster state:
+    - Two input qubits (control_in, target_in)
+    - Two ancilla qubits that get measured
+    - Results in CNOT operation on control and target
+
+    The graph structure is:
+        control_in --- ancilla_c --- ancilla_t --- target_in
+
+    Measurements on ancillas implement the CNOT logic.
+
+    Args:
+        control: Index of control qubit (default 0)
+        target: Index of target qubit (default 1)
+
+    Returns:
+        MeasurementPattern implementing CNOT gate
+    """
+    # MBQC CNOT uses 4 qubits in linear cluster
+    # Qubit indices: control_in=0, ancilla_c=1, ancilla_t=2, target_in=3
+    control_in = 0
+    ancilla_c = 1
+    ancilla_t = 2
+    target_in = 3
+
+    # Linear cluster entanglement
+    entanglement = [
+        (control_in, ancilla_c),
+        (ancilla_c, ancilla_t),
+        (ancilla_t, target_in)
+    ]
+
+    # Measurements on ancillas implement CNOT
+    # Measure ancilla_c in XY plane at angle 0
+    # Measure ancilla_t in XY plane at angle 0 (adaptive based on control measurement)
+    measurements = [
+        Measurement(
+            qubit=ancilla_c,
+            angle=0.0,
+            plane="XY",
+            depends_on=[],
+            adaptive=False
+        ),
+        Measurement(
+            qubit=ancilla_t,
+            angle=0.0,
+            plane="XY",
+            depends_on=[ancilla_c],
+            adaptive=True  # Angle may need sign flip based on ancilla_c result
+        )
+    ]
+
+    # Corrections based on measurement outcomes
+    # Control qubit: Z correction if ancilla_c = 1
+    # Target qubit: X correction if ancilla_t = 1, Z correction if ancilla_c = 1
+    corrections = [
+        Correction(
+            target=control_in,
+            correction_type="Z",
+            condition=lambda outcomes: outcomes[0] == 1,  # ancilla_c outcome
+            depends_on=[ancilla_c]
+        ),
+        Correction(
+            target=target_in,
+            correction_type="X",
+            condition=lambda outcomes: outcomes[1] == 1,  # ancilla_t outcome
+            depends_on=[ancilla_t]
+        ),
+        Correction(
+            target=target_in,
+            correction_type="Z",
+            condition=lambda outcomes: outcomes[0] == 1,  # ancilla_c outcome
+            depends_on=[ancilla_c]
+        )
+    ]
+
+    pattern = MeasurementPattern(
+        preparation=[control_in, ancilla_c, ancilla_t, target_in],
+        entanglement=entanglement,
+        measurements=measurements,
+        corrections=corrections,
+        output_qubits=[control_in, target_in],
+        description="CNOT gate"
+    )
+
+    return pattern
+
+
+def generate_cz_pattern(qubit1: int = 0, qubit2: int = 1) -> MeasurementPattern:
+    """
+    Generate measurement pattern for CZ (controlled-Z) gate.
+
+    CZ is simpler than CNOT in MBQC - it's a native operation
+    that creates entanglement between qubits.
+
+    Args:
+        qubit1: First qubit index (default 0)
+        qubit2: Second qubit index (default 1)
+
+    Returns:
+        MeasurementPattern implementing CZ gate
+    """
+    # CZ is native in cluster states - just an edge in the graph
+    # No measurements needed, just entanglement
+    pattern = MeasurementPattern(
+        preparation=[qubit1, qubit2],
+        entanglement=[(qubit1, qubit2)],
+        measurements=[],
+        corrections=[],
+        output_qubits=[qubit1, qubit2],
+        description="CZ gate"
+    )
+
+    return pattern

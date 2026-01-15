@@ -18,6 +18,8 @@ from qpl.mbqc import (
     generate_rotation_pattern,
     combine_patterns,
     extract_graph,
+    generate_cnot_pattern,
+    generate_cz_pattern,
 )
 
 
@@ -121,7 +123,7 @@ def test_pattern_from_relation():
 
     assert pattern.num_qubits == 2
     assert len(pattern.entanglement) == 1
-    assert pattern.graph['state_type'] == 'bell'
+    assert pattern.metadata['state_type'] == 'bell'
 
     print("✓ Pattern generated from relation correctly")
 
@@ -190,10 +192,10 @@ def test_measurement_depth():
     assert h_pattern.measurement_depth == 1
     print("  ✓ H gate: depth 1")
 
-    # Combined pattern has depth 2
+    # Combined pattern has depth 1 (parallel composition - independent measurements)
     combined = combine_patterns(h_pattern, generate_single_qubit_gate_pattern("X"))
-    assert combined.measurement_depth == 2
-    print("  ✓ Combined pattern: depth 2")
+    assert combined.measurement_depth == 1  # Max depth, not sum (parallel execution)
+    print("  ✓ Combined pattern: depth 1 (parallel composition)")
 
     print("✓ Measurement depth calculated correctly")
 
@@ -245,6 +247,53 @@ def test_measurement_ordering():
     print("✓ Measurement ordering correct")
 
 
+def test_cnot_pattern():
+    """Test: CNOT gate pattern generation."""
+    print("\n=== Test: CNOT Gate Pattern ===")
+
+    pattern = generate_cnot_pattern()
+
+    print(f"CNOT pattern:")
+    print(pattern)
+
+    # CNOT uses 4 qubits: control_in, ancilla_c, ancilla_t, target_in
+    assert pattern.num_qubits == 4, f"Expected 4 qubits, got {pattern.num_qubits}"
+    assert len(pattern.entanglement) == 3, f"Expected 3 CZ gates (linear cluster)"
+    assert len(pattern.measurements) == 2, f"Expected 2 measurements (on ancillas)"
+    assert len(pattern.corrections) == 3, f"Expected 3 corrections"
+    assert pattern.output_qubits == [0, 3], f"Expected output qubits [0, 3]"
+
+    # Check measurement structure
+    assert pattern.measurements[0].qubit == 1  # ancilla_c
+    assert pattern.measurements[1].qubit == 2  # ancilla_t
+    assert pattern.measurements[1].adaptive == True  # Second measurement is adaptive
+
+    # Check measurement depth (2 dependent measurements)
+    assert pattern.measurement_depth == 2, f"Expected depth 2, got {pattern.measurement_depth}"
+
+    print("  ✓ CNOT: 4 qubits, linear cluster, 2 measurements, depth 2")
+    print("✓ CNOT pattern generation correct")
+
+
+def test_cz_pattern():
+    """Test: CZ gate pattern generation."""
+    print("\n=== Test: CZ Gate Pattern ===")
+
+    pattern = generate_cz_pattern()
+
+    print(f"CZ pattern:")
+    print(pattern)
+
+    # CZ is native in MBQC - just entanglement, no measurements
+    assert pattern.num_qubits == 2, f"Expected 2 qubits"
+    assert len(pattern.entanglement) == 1, f"Expected 1 CZ gate"
+    assert len(pattern.measurements) == 0, f"CZ needs no measurements"
+    assert pattern.measurement_depth == 0, f"Expected depth 0"
+
+    print("  ✓ CZ: 2 qubits, 1 entanglement, no measurements")
+    print("✓ CZ pattern generation correct")
+
+
 def main():
     """Run all pattern generation tests."""
     print("=" * 60)
@@ -261,6 +310,8 @@ def main():
         test_measurement_depth,
         test_pattern_validation,
         test_measurement_ordering,
+        test_cnot_pattern,
+        test_cz_pattern,
     ]
 
     passed = 0

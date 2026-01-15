@@ -46,15 +46,15 @@ def apply_pauli_correction(state: np.ndarray,
         raise ValueError(f"Invalid correction type: {correction_type}")
 
     # Build tensor product: I ⊗ ... ⊗ Pauli ⊗ ... ⊗ I
-    operator = 1
+    operator = None
     for i in range(n_qubits):
         if i == qubit_idx:
-            if operator == 1:
+            if operator is None:
                 operator = pauli
             else:
                 operator = np.kron(operator, pauli)
         else:
-            if operator == 1:
+            if operator is None:
                 operator = I
             else:
                 operator = np.kron(operator, I)
@@ -177,6 +177,13 @@ def simulate_teleportation(input_state: np.ndarray) -> tuple:
     """
     Simulate quantum teleportation with adaptive corrections.
 
+    Teleportation protocol:
+    1. Alice has |ψ⟩ on qubit A, Bell pair |Φ+⟩ shared on qubits B,C
+    2. Alice applies CNOT(A→B) then H(A)
+    3. Alice measures qubits A and B
+    4. Bob applies corrections to C based on measurement outcomes
+    5. Qubit C now contains |ψ⟩
+
     Args:
         input_state: Input quantum state to teleport (2D vector)
 
@@ -185,46 +192,89 @@ def simulate_teleportation(input_state: np.ndarray) -> tuple:
     """
     # Normalize input
     input_state = input_state / np.linalg.norm(input_state)
+    alpha, beta = input_state[0], input_state[1]
 
-    # Create full initial state: |ψ⟩ ⊗ |Φ+⟩
+    # Create full initial state: |ψ⟩_A ⊗ |Φ+⟩_BC
     # |Φ+⟩ = (|00⟩ + |11⟩)/√2
-    bell_state = np.array([1, 0, 0, 1]) / np.sqrt(2)
-
-    # Full 3-qubit state: qubit 0 (input) ⊗ qubits 1-2 (Bell pair)
+    # Full state = (α|0⟩ + β|1⟩) ⊗ (|00⟩ + |11⟩)/√2
+    # = (α|000⟩ + α|011⟩ + β|100⟩ + β|111⟩)/√2
+    bell_state = np.array([1, 0, 0, 1], dtype=complex) / np.sqrt(2)
     full_state = np.kron(input_state, bell_state)
 
-    # Alice entangles her qubits (0 and 1) with CNOT and H
-    # For simplicity, we'll directly compute measurement outcomes
-    # In real implementation, this would involve applying gates and measuring
+    # Apply CNOT(A→B): flips B if A=1
+    # |000⟩ → |000⟩, |011⟩ → |011⟩, |100⟩ → |110⟩, |111⟩ → |101⟩
+    cnot_ab = np.array([
+        [1, 0, 0, 0, 0, 0, 0, 0],
+        [0, 1, 0, 0, 0, 0, 0, 0],
+        [0, 0, 1, 0, 0, 0, 0, 0],
+        [0, 0, 0, 1, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 1, 0],
+        [0, 0, 0, 0, 0, 0, 0, 1],
+        [0, 0, 0, 0, 1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 1, 0, 0],
+    ], dtype=complex)
+    state_after_cnot = cnot_ab @ full_state
 
-    # Simulate measurements (simplified - use random outcomes for now)
-    measurement_0 = np.random.randint(0, 2)  # Alice measures qubit 0
-    measurement_1 = np.random.randint(0, 2)  # Alice measures qubit 1
+    # Apply H on qubit A: H ⊗ I ⊗ I
+    H = np.array([[1, 1], [1, -1]], dtype=complex) / np.sqrt(2)
+    I = np.eye(2, dtype=complex)
+    H_A = np.kron(np.kron(H, I), I)
+    state_after_h = H_A @ state_after_cnot
 
-    measurement_outcomes = {0: measurement_0, 1: measurement_1}
+    # Calculate measurement probabilities for qubits A and B
+    # State is now in computational basis, indexed as |ABC⟩
+    # We need to trace out C and get probabilities for AB
+    probs = np.abs(state_after_h) ** 2
 
-    # Bob's qubit starts in a state that depends on measurements
-    # After corrections, it should be |ψ⟩
-    output_state = input_state.copy()
+    # Probabilities for each AB outcome (summing over C)
+    # |000⟩=0, |001⟩=1, |010⟩=2, |011⟩=3, |100⟩=4, |101⟩=5, |110⟩=6, |111⟩=7
+    prob_00 = probs[0] + probs[1]  # AB=00, C=0 or 1
+    prob_01 = probs[2] + probs[3]  # AB=01
+    prob_10 = probs[4] + probs[5]  # AB=10
+    prob_11 = probs[6] + probs[7]  # AB=11
+
+    # Sample measurement outcome
+    outcome_probs = [prob_00, prob_01, prob_10, prob_11]
+    outcome_idx = np.random.choice(4, p=outcome_probs)
+    measurement_a = outcome_idx // 2  # First bit
+    measurement_b = outcome_idx % 2   # Second bit
+
+    measurement_outcomes = {0: measurement_a, 1: measurement_b}
+
+    # Extract Bob's qubit state conditioned on measurement
+    # After measurement of AB, C is in a specific state
+    if outcome_idx == 0:  # AB = 00
+        # C state from |000⟩ and |001⟩ components
+        bob_state = np.array([state_after_h[0], state_after_h[1]], dtype=complex)
+    elif outcome_idx == 1:  # AB = 01
+        bob_state = np.array([state_after_h[2], state_after_h[3]], dtype=complex)
+    elif outcome_idx == 2:  # AB = 10
+        bob_state = np.array([state_after_h[4], state_after_h[5]], dtype=complex)
+    else:  # AB = 11
+        bob_state = np.array([state_after_h[6], state_after_h[7]], dtype=complex)
+
+    # Normalize Bob's state
+    bob_state = bob_state / np.linalg.norm(bob_state)
 
     # Apply corrections based on measurements
+    # AB=00: no correction needed, Bob has |ψ⟩
+    # AB=01: apply X, Bob has X|ψ⟩
+    # AB=10: apply Z, Bob has Z|ψ⟩
+    # AB=11: apply ZX, Bob has ZX|ψ⟩
     corrections_applied = []
+    output_state = bob_state.copy()
 
-    if measurement_0 == 1:
-        output_state = apply_pauli_correction(
-            np.kron(output_state, np.array([1])),  # Pad to right size
-            0, "Z"
-        )[:2]  # Take first 2 elements
-        corrections_applied.append("Z")
-
-    if measurement_1 == 1:
-        output_state = apply_pauli_correction(
-            np.kron(output_state, np.array([1])),
-            0, "X"
-        )[:2]
+    if measurement_b == 1:  # Apply X correction
+        X = np.array([[0, 1], [1, 0]], dtype=complex)
+        output_state = X @ output_state
         corrections_applied.append("X")
 
-    # Normalize
+    if measurement_a == 1:  # Apply Z correction
+        Z = np.array([[1, 0], [0, -1]], dtype=complex)
+        output_state = Z @ output_state
+        corrections_applied.append("Z")
+
+    # Normalize final output
     output_state = output_state / np.linalg.norm(output_state)
 
     return output_state, measurement_outcomes, corrections_applied
