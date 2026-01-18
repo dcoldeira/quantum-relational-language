@@ -2,7 +2,7 @@
 
 **A relations-first quantum programming language with a working MBQC compiler.**
 
-[![arXiv](https://img.shields.io/badge/arXiv-Submitted-b31b1b.svg)](https://arxiv.org/)
+[![Zenodo](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.18292199-blue)](https://doi.org/10.5281/zenodo.18292199)
 [![Tests](https://img.shields.io/badge/Tests-47%20passing-brightgreen)](tests/)
 [![Physics](https://img.shields.io/badge/Physics-Verified-blue)](tests/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -168,14 +168,14 @@ quantum-process-language/
 │       └── measurement_pattern.py   # MeasurementPattern dataclass
 ├── tests/                    # 47 tests
 ├── examples/                 # Working examples
-└── papers/                   # arXiv paper (private)
+└── papers/                   # Published paper (Zenodo)
 ```
 
 ## Documentation
 
 - **[Tutorial Book](https://dcoldeira.github.io/qpl-book/)** - 23 chapters on QPL concepts
 - **[Technical Blog](https://dcoldeira.github.io/)** - Development journey and deep dives
-- **arXiv Paper** - "QPL: A Relations-First Programming Language for Measurement-Based Quantum Computing" (submitted January 2026)
+- **[Published Paper](https://doi.org/10.5281/zenodo.18292199)** - "QPL: A Relations-First Programming Language for Measurement-Based Quantum Computing" (Zenodo preprint, January 2026)
 
 ## Research Direction
 
