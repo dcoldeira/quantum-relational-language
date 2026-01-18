@@ -1,70 +1,56 @@
 # Quantum Process Language (QPL)
 
-**A relations-first quantum programming language that compiles directly to Measurement-Based Quantum Computing (MBQC) without gate decomposition.**
+**A relations-first quantum programming language with a working MBQC compiler.**
 
-[![arXiv](https://img.shields.io/badge/arXiv-Submitted-b31b1b.svg)](https://arxiv.org/abs/submit/7162534)
+[![arXiv](https://img.shields.io/badge/arXiv-Submitted-b31b1b.svg)](https://arxiv.org/)
+[![Tests](https://img.shields.io/badge/Tests-47%20passing-brightgreen)](tests/)
 [![Physics](https://img.shields.io/badge/Physics-Verified-blue)](tests/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue)](https://www.python.org/)
 
-## Overview
+## What is QPL?
 
-QPL is a research-grade quantum programming language designed to compile directly to **Measurement-Based Quantum Computing (MBQC)** for photonic quantum computers and fault-tolerant surface codes—without intermediate gate decomposition.
+QPL is a quantum programming language that treats **entanglement as a first-class primitive** and compiles directly to **Measurement-Based Quantum Computing (MBQC)** patterns—without intermediate gate decomposition.
 
-Unlike gate-based quantum languages (Qiskit, Cirq, Q#), QPL treats quantum entanglement as a first-class primitive, naturally expressing cluster states and measurement patterns that power MBQC.
+Unlike gate-based languages (Qiskit, Cirq, Q#), QPL expresses quantum programs as relationships between systems, which map naturally to the cluster states and measurement patterns that power photonic quantum computers.
 
-## Philosophy: Relations First, Not Gates
+## Why QPL?
 
-QPL embodies a fundamental paradigm shift:
+**The Problem:** Current quantum languages force a gate-based mental model onto hardware that doesn't work that way. Photonic quantum computers use MBQC, but programmers must write gate circuits that get inefficiently converted.
 
-1. **Relations over objects**: Entanglement is primitive, not derived from gates
-2. **Questions over measurements**: Measurement is asking a question with explicit context
-3. **MBQC over circuits**: Compile to measurement patterns, not gate sequences
-4. **Physics over abstraction**: Match quantum mechanics, not classical circuit models
+**QPL's Solution:** Write programs in terms of quantum relationships → compile directly to MBQC measurement patterns.
+
+```
+Traditional: Gates → Circuit → Decompose → MBQC patterns → Hardware
+QPL:         Relations → Graph extraction → MBQC patterns → Hardware
+```
 
 ## Quick Start
 
 ```python
 from qpl import QPLProgram, create_question, QuestionType
+from qpl.mbqc import extract_graph, generate_pattern_from_relation
 
-# Create a quantum program
-program = QPLProgram("My First QPL Program")
-
-# Create quantum systems
+# Create entangled quantum systems
+program = QPLProgram("Bell State Demo")
 qubit_a = program.create_system()
 qubit_b = program.create_system()
-
-# Entangle them (creates a Bell pair)
 bell_pair = program.entangle(qubit_a, qubit_b)
 
-# Add a perspective (observer)
-alice = program.add_perspective("alice", {"role": "experimenter"})
+# Extract MBQC graph structure
+graph = extract_graph(bell_pair)
+print(f"Cluster state: {graph.number_of_nodes()} qubits, {graph.number_of_edges()} edges")
 
-# Create a question (measurement in Z basis)
+# Generate measurement pattern
+pattern = generate_pattern_from_relation(bell_pair)
+print(f"Pattern: {pattern.description}")
+
+# Measure with explicit context
+alice = program.add_perspective("alice")
 question = create_question(QuestionType.SPIN_Z)
-
-# For single qubit measurement
-single_qubit = program.create_system()
-relation = program._find_relation_with_system(single_qubit)
-result = program.ask(relation, question, perspective="alice")
-
+result = program.ask(bell_pair, question, perspective="alice")
 print(f"Measurement result: {result}")
-print(f"Entanglement entropy: {bell_pair.entanglement_entropy:.3f}")
 ```
-
-### Run the Interactive Demo
-
-```bash
-# From the project root directory
-python examples/quickstart.py
-```
-
-## Publication
-
-**Paper:** [QPL: A Relations-First Programming Language for Measurement-Based Quantum Computing](https://arxiv.org/abs/submit/7162534)
-*Submitted to arXiv (quant-ph, cs.PL), January 2026 - Under moderation*
-
-The paper formalizes QPL's operational semantics, demonstrates compilation to MBQC measurement patterns, and validates the implementation with n-qubit GHZ states, W states, and partial measurements, achieving 100% physics correctness on Bell correlations and cross-basis measurements.
 
 ## Installation
 
@@ -74,112 +60,156 @@ cd quantum-process-language
 pip install -e .
 ```
 
-**Requirements:** Python 3.8+, NumPy
+**Requirements:** Python 3.8+, NumPy, NetworkX
 
 ## Implementation Status
 
-### ✅ Core Language (Stages 0-1 Complete)
-- **n-qubit quantum relations** with arbitrary entanglement
-- **GHZ states**: `(|000...0⟩ + |111...1⟩)/√2` (tested up to 5 qubits)
-- **W states**: `(|100...0⟩ + |010...0⟩ + ... )/√n`
-- **Bell states** and 2-qubit foundations
-- **Partial measurements** on n-qubit systems
-- **Cross-basis measurements** (Z, X, Y, custom)
-- **Entanglement entropy tracking** via Schmidt decomposition
-- **~2,300 lines of code** with 45+ test functions
-- **100% physics correctness** on Bell correlations and cross-basis measurements
+### Core Language (Complete)
+- **QuantumRelation** - Entanglement as first-class citizen
+- **QuantumQuestion** - Measurement with explicit basis context
+- **Perspective** - Observer-relative quantum states
+- **n-qubit support** - GHZ states (tested to 5 qubits), W states
 
-### 🔄 MBQC Compiler (Stage 2 - In Progress)
-- Graph state extraction from QuantumRelation (Bell, GHZ, W states)
-- Measurement pattern generation (in development)
-- Adaptive Pauli corrections (planned)
-- Photonic backend integration (planned)
+### MBQC Compiler (Complete)
+
+| Component | Status | Description |
+|-----------|--------|-------------|
+| Graph Extraction | ✅ | `extract_graph()` - Relations → cluster state topology |
+| Pattern Generation | ✅ | Bell, GHZ, H/X/Z/S/T gates, CNOT, CZ, rotations |
+| Adaptive Corrections | ✅ | Pauli corrections based on measurement outcomes |
+| Teleportation | ✅ | Full protocol with fidelity = 1.0 |
+
+### Validation
+- **47 tests passing**
+- **100% physics correctness** on Bell correlations
+- **Teleportation fidelity verified**
+
+```bash
+# Run tests
+python -m pytest tests/ -v
+```
+
+## MBQC Compilation Pipeline
+
+QPL implements the complete MBQC compilation pipeline:
+
+```python
+from qpl import QPLProgram
+from qpl.mbqc import (
+    extract_graph,
+    generate_pattern_from_relation,
+    generate_teleportation_pattern,
+    simulate_teleportation
+)
+
+# 1. Create quantum relation
+program = QPLProgram("GHZ State")
+qubits = [program.create_system() for _ in range(3)]
+ghz = program.entangle(*qubits)
+
+# 2. Extract graph state structure
+graph = extract_graph(ghz)
+# GHZ₃ → star graph (3 nodes, 2 edges)
+
+# 3. Generate measurement pattern
+pattern = generate_pattern_from_relation(ghz)
+# Returns: MeasurementPattern with preparation, entanglement, measurements, corrections
+
+# 4. Teleportation with adaptive corrections
+input_state = np.array([0.6, 0.8])  # |ψ⟩ = 0.6|0⟩ + 0.8|1⟩
+output, outcomes, corrections = simulate_teleportation(input_state)
+# Fidelity = 1.0 (perfect teleportation)
+```
 
 ## Key Features
 
-- **Entanglement as primitive:** `entangle()` creates quantum relations directly
-- **Contextual measurement:** `ask(relation, question, perspective)` with explicit basis
-- **n-qubit support:** GHZ, W states, arbitrary multi-qubit entanglement
-- **Automatic entanglement tracking:** Schmidt decomposition and von Neumann entropy
-- **Physics-verified:** 100% correctness on Bell correlations and quantum measurements
-- **MBQC compilation:** Direct compilation to cluster states and measurement patterns
-- **Research-grade:** Formal operational semantics, published on arXiv
-
-## Examples
-
-See the `examples/` directory for demonstrations:
-
-- **quickstart.py** - Interactive introduction to QPL concepts
-- **teleportation.py** - Quantum teleportation protocol
-
-Coming soon:
-- Bell inequality violation
-- Double-slit experiment simulation
-- Quantum key distribution
-
-Run any example from the project root:
-```bash
-python examples/quickstart.py
-python examples/teleportation.py
+### Relations-First Programming
+```python
+# Instead of gates, work with relationships
+bell = program.entangle(qubit_a, qubit_b)  # Creates QuantumRelation
+ghz = program.entangle(q0, q1, q2)          # 3-qubit GHZ state
 ```
 
-## Research Direction
+### Contextual Measurement
+```python
+# Measurements are questions asked from a perspective
+question = create_question(QuestionType.SPIN_X)  # X-basis measurement
+result = program.ask(relation, question, perspective="alice")
+```
 
-QPL explores whether relations-first programming can simplify compilation to Measurement-Based Quantum Computing, with applications to photonic quantum computers and fault-tolerant surface codes.
+### Automatic Graph Extraction
+```python
+# QPL automatically determines cluster state topology
+graph = extract_graph(relation)
+# Bell state → edge graph
+# GHZ state → star graph
+# W state → ring topology
+```
 
-**Open Research Questions:**
-1. Can relations-first abstractions simplify MBQC compilation compared to gate-based approaches?
-2. Do tensor network representations (MPS/PEPS) enable efficient simulation of QPL programs?
-3. Can QPL provide higher-level abstractions for photonic quantum hardware?
-4. How can type systems enforce quantum constraints (no-cloning, entanglement tracking) at compile time?
+### Adaptive Pauli Corrections
+```python
+# MBQC requires corrections based on measurement outcomes
+pattern = generate_teleportation_pattern()
+# Automatically includes X/Z corrections conditioned on Bell measurement results
+```
 
-**Target Hardware:**
-- Photonic quantum computers (PsiQuantum, Xanadu)
-- Surface code architectures (fault-tolerant quantum computing)
-- Neutral atom systems with native graph state generation
+## Project Structure
+
+```
+quantum-process-language/
+├── src/qpl/
+│   ├── core.py              # QuantumRelation, QuantumQuestion, Perspective
+│   ├── measurement.py       # Measurement and basis transformations
+│   ├── tensor_utils.py      # n-qubit tensor operations
+│   └── mbqc/                 # MBQC compiler
+│       ├── graph_extraction.py      # Relations → graphs
+│       ├── pattern_generation.py    # Graphs → measurement patterns
+│       ├── adaptive_corrections.py  # Pauli corrections, teleportation
+│       └── measurement_pattern.py   # MeasurementPattern dataclass
+├── tests/                    # 47 tests
+├── examples/                 # Working examples
+└── papers/                   # arXiv paper (private)
+```
 
 ## Documentation
 
-- **[arXiv Paper](https://arxiv.org/abs/submit/7162534):** Formal semantics and MBQC compilation strategy (January 2026)
-- **[Tutorial Book](https://dcoldeira.github.io/qpl-book/):** 23 chapters on QPL concepts and implementation
-- **[Blog](https://dcoldeira.github.io):** Technical deep-dives and development journey
+- **[Tutorial Book](https://dcoldeira.github.io/qpl-book/)** - 23 chapters on QPL concepts
+- **[Technical Blog](https://dcoldeira.github.io/)** - Development journey and deep dives
+- **arXiv Paper** - "QPL: A Relations-First Programming Language for Measurement-Based Quantum Computing" (submitted January 2026)
 
-**Selected Blog Posts:**
-- [Stage Zero: Programming Quantum Reality Through Relations, Not Gates](https://dcoldeira.github.io/posts/2025-12-29-qpl-stage-zero/)
-- [Stage 1: Scaling to n-Qubit Relations](https://dcoldeira.github.io/posts/2025-12-31-qpl-stage-one/)
-- [Why QPL is Adopting MBQC](https://dcoldeira.github.io/posts/2026-01-10-mbqc-why/)
+## Research Direction
+
+QPL explores whether relations-first programming can simplify compilation to MBQC, with applications to:
+- **Photonic quantum computers** (PsiQuantum, Xanadu, ORCA)
+- **Fault-tolerant surface codes**
+- **Neutral atom systems** with native graph state generation
+
+### Open Research Questions
+
+1. Can relations-first abstractions reduce MBQC compilation overhead vs gate-based?
+2. Can type systems enforce quantum constraints (no-cloning) at compile time?
+3. How do these abstractions interface with topological error correction?
 
 ## Related Projects
 
 ### [Quantum Advantage Advisor](https://github.com/dcoldeira/quantum-advantage-advisor)
-**Reality-check tool:** Tells you whether quantum computing actually makes sense for your problem.
-- Evidence-based recommendations (no hype!)
-- Curated knowledge base of proven quantum advantages
-- Timeline-aware (NISQ vs fault-tolerant era)
-- Separate tool for anyone evaluating quantum vs classical computing
+Reality-check tool that tells you whether quantum computing makes sense for your problem. Evidence-based, no hype.
+
+## Contributing
+
+QPL is a research project. Contributions welcome from researchers interested in:
+- Quantum programming language design
+- MBQC theory and compilation
+- Photonic quantum computing
+- Formal verification of quantum programs
 
 ## Contact
 
 **David Coldeira**
 - Email: dcoldeira@gmail.com
 - GitHub: [@dcoldeira](https://github.com/dcoldeira)
-- LinkedIn: [David Coldeira](https://uk.linkedin.com/in/dcoldeira)
-
-**Background:**
-- BSc Physics (Heriot-Watt University, 2008)
-- 15+ years scientific software engineering
-- Research interests: Quantum programming languages, MBQC, tensor networks, photonic quantum computing
-
-## Contributing
-
-QPL is a research project exploring relations-first quantum programming and MBQC compilation. Contributions welcome from researchers and developers interested in:
-- Quantum programming language design and type systems
-- MBQC theory and compilation strategies
-- Tensor network representations and efficient simulation
-- Photonic quantum computing and surface codes
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+- Blog: [dcoldeira.github.io](https://dcoldeira.github.io)
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+MIT License - see [LICENSE](LICENSE)
