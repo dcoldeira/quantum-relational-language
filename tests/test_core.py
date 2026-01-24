@@ -1,18 +1,18 @@
 """
-Tests for QPL core functionality
+Tests for QRL core functionality
 """
 
 import numpy as np
 import pytest
-from qpl.core import (
-    QPLProgram, QuantumRelation, QuantumQuestion, QuestionType,
+from qrl.core import (
+    QRLProgram, QuantumRelation, QuantumQuestion, QuestionType,
     entangle, ask, create_question
 )
 
 
 def test_program_creation():
-    """Test creating a QPL program"""
-    program = QPLProgram("Test Program")
+    """Test creating a QRL program"""
+    program = QRLProgram("Test Program")
     assert program.name == "Test Program"
     assert len(program.relations) == 0
     assert "default" in program.perspectives
@@ -20,7 +20,7 @@ def test_program_creation():
 
 def test_system_creation():
     """Test creating quantum systems"""
-    program = QPLProgram()
+    program = QRLProgram()
     system_id = program.create_system()
     assert system_id == 0
     assert program.system_counter == 1
@@ -31,7 +31,7 @@ def test_system_creation():
 
 def test_entanglement():
     """Test creating entanglement between systems"""
-    program = QPLProgram()
+    program = QRLProgram()
     sys1 = program.create_system()
     sys2 = program.create_system()
 
@@ -53,7 +53,7 @@ def test_question_creation():
 
 def test_perspectives():
     """Test multiple perspectives"""
-    program = QPLProgram()
+    program = QRLProgram()
     alice = program.add_perspective("alice", {"can_measure": True})
     bob = program.add_perspective("bob", {"can_measure": True})
 
@@ -65,7 +65,7 @@ def test_perspectives():
 
 def test_measurement():
     """Test asking questions (measurement)"""
-    program = QPLProgram()
+    program = QRLProgram()
     system_id = program.create_system()
     relation = program._find_relation_with_system(system_id)
 
@@ -81,7 +81,7 @@ def test_measurement():
 
 def test_superposition():
     """Test superposition execution (simplified)"""
-    program = QPLProgram()
+    program = QRLProgram()
 
     def branch1(prog):
         return "branch1_result"
@@ -99,7 +99,7 @@ def test_superposition():
 
 def test_partial_measurement():
     """Test measuring one qubit from an entangled pair"""
-    program = QPLProgram()
+    program = QRLProgram()
 
     # Create entangled Bell pair
     sys1 = program.create_system()
@@ -127,7 +127,7 @@ def test_partial_measurement():
 
 def test_multi_qubit_full_measurement():
     """Test measuring both qubits together"""
-    program = QPLProgram()
+    program = QRLProgram()
 
     # Create entangled pair
     sys1 = program.create_system()
@@ -153,7 +153,7 @@ def test_multi_qubit_full_measurement():
 
 def test_bell_pair_correlations():
     """Test that Bell pairs show perfect correlations"""
-    program = QPLProgram()
+    program = QRLProgram()
 
     # Run multiple trials
     same_results = 0
@@ -161,7 +161,7 @@ def test_bell_pair_correlations():
 
     for _ in range(trials):
         # Fresh entangled pair each time
-        program_trial = QPLProgram()
+        program_trial = QRLProgram()
         s1 = program_trial.create_system()
         s2 = program_trial.create_system()
         rel = entangle(program_trial, s1, s2)

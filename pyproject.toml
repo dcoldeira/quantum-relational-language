@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "quantum-process-language"
-version = "0.1.0"
-description = "A quantum programming language built from first principles of information theory"
+name = "quantum-relational-language"
+version = "0.2.0"
+description = "A relations-first quantum programming language with native MBQC compilation"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
@@ -33,10 +33,10 @@ docs = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/quantum-process-language"
-Documentation = "https://github.com/yourusername/quantum-process-language/docs"
-Repository = "https://github.com/yourusername/quantum-process-language"
-"Issue Tracker" = "https://github.com/yourusername/quantum-process-language/issues"
+Homepage = "https://github.com/dcoldeira/quantum-relational-language"
+Documentation = "https://github.com/dcoldeira/quantum-relational-language/docs"
+Repository = "https://github.com/dcoldeira/quantum-relational-language"
+"Issue Tracker" = "https://github.com/dcoldeira/quantum-relational-language/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]

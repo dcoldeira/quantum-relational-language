@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Quantum teleportation example in QPL
+Quantum teleportation example in QRL
 """
 
 import numpy as np
-from qpl import QPLProgram, entangle, ask, create_question, QuestionType
+from qrl import QRLProgram, entangle, ask, create_question, QuestionType
 
 
 def quantum_teleportation():
@@ -12,10 +12,10 @@ def quantum_teleportation():
     Demonstrate quantum teleportation using QPL.
     Alice wants to teleport a quantum state to Bob.
     """
-    print("=== Quantum Teleportation in QPL ===")
+    print("=== Quantum Teleportation in QRL ===")
 
     # Create the program
-    program = QPLProgram("Quantum Teleportation")
+    program = QRLProgram("Quantum Teleportation")
 
     # Create perspectives
     program.add_perspective("alice", {"role": "sender"})

@@ -1,4 +1,4 @@
-"""Compilers for QPL to various quantum backends"""
+"""Compilers for QRL to various quantum backends"""
 
 from .qiskit_backend import compile_to_qiskit, get_compiler as get_qiskit_compiler
 

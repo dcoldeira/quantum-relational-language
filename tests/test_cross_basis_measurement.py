@@ -8,7 +8,7 @@ import sys
 sys.path.insert(0, 'src')
 
 import numpy as np
-from qpl import QPLProgram, create_question, QuestionType
+from qrl import QRLProgram, create_question, QuestionType
 
 
 def test_same_basis_correlation():
@@ -17,7 +17,7 @@ def test_same_basis_correlation():
     matches = 0
 
     for _ in range(trials):
-        program = QPLProgram()
+        program = QRLProgram()
         q1 = program.create_system()
         q2 = program.create_system()
         bell = program.entangle(q1, q2)
@@ -48,7 +48,7 @@ def test_cross_basis_correlation():
     matches = 0
 
     for _ in range(trials):
-        program = QPLProgram()
+        program = QRLProgram()
         q1 = program.create_system()
         q2 = program.create_system()
         bell = program.entangle(q1, q2)
@@ -81,7 +81,7 @@ def test_x_basis_measurement_eigenstate():
     plus_outcomes = 0
 
     for _ in range(trials):
-        program = QPLProgram()
+        program = QRLProgram()
 
         # Create |+⟩ = (|0⟩ + |1⟩)/√2
         plus_state = np.array([1, 1]) / np.sqrt(2)
@@ -114,7 +114,7 @@ def test_x_basis_measurement_z_eigenstate():
     outcome_0 = 0
 
     for _ in range(trials):
-        program = QPLProgram()
+        program = QRLProgram()
 
         # Create |0⟩ (default state)
         q = program.create_system()

@@ -10,7 +10,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 import numpy as np
-from qpl.mbqc import (
+from qrl.mbqc import (
     apply_pauli_correction,
     compute_corrections,
     generate_teleportation_pattern,

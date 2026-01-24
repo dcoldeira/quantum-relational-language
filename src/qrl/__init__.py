@@ -1,15 +1,17 @@
 """
-Quantum Process Language (QPL)
+Quantum Relational Language (QRL)
 
-A quantum programming language built from first principles of information theory
-and relational physics.
+A relations-first quantum programming language with native MBQC compilation.
+Built from first principles of information theory and relational physics.
+
+Formerly known as QPL (Quantum Process Language).
 
 Author: David Coldeira (dcoldeira@gmail.com)
 License: MIT
 """
 
 from .core import (
-    QPLProgram,
+    QRLProgram,
     QuantumRelation,
     QuantumQuestion,
     QuestionType,
@@ -20,10 +22,10 @@ from .core import (
     create_question,
 )
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
-    'QPLProgram',
+    'QRLProgram',
     'QuantumRelation',
     'QuantumQuestion',
     'QuestionType',

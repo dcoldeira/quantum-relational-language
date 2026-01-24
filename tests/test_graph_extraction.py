@@ -1,7 +1,7 @@
 """
 Tests for MBQC Graph Extraction (Stage 2, Phase 1)
 
-Tests the extraction of graph states from QPL QuantumRelation objects.
+Tests the extraction of graph states from QRL QuantumRelation objects.
 """
 
 import sys
@@ -9,15 +9,15 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 import numpy as np
-from qpl import QPLProgram
-from qpl.mbqc import extract_graph, analyze_entanglement_structure, visualize_graph
+from qrl import QRLProgram
+from qrl.mbqc import extract_graph, analyze_entanglement_structure, visualize_graph
 
 
 def test_bell_state_graph_extraction():
     """Test: Bell state should produce edge graph (2 nodes, 1 edge)."""
     print("\n=== Test: Bell State Graph Extraction ===")
     
-    program = QPLProgram("Bell State")
+    program = QRLProgram("Bell State")
     q0 = program.create_system()
     q1 = program.create_system()
     bell = program.entangle(q0, q1)
@@ -41,7 +41,7 @@ def test_ghz3_state_graph_extraction():
     """Test: 3-qubit GHZ should produce star graph."""
     print("\n=== Test: GHZ₃ State Graph Extraction ===")
     
-    program = QPLProgram("GHZ3")
+    program = QRLProgram("GHZ3")
     q0 = program.create_system()
     q1 = program.create_system()
     q2 = program.create_system()
@@ -70,7 +70,7 @@ def test_ghz4_state_graph_extraction():
     """Test: 4-qubit GHZ should produce star graph with 3 edges."""
     print("\n=== Test: GHZ₄ State Graph Extraction ===")
     
-    program = QPLProgram("GHZ4")
+    program = QRLProgram("GHZ4")
     qubits = [program.create_system() for _ in range(4)]
     ghz4 = program.entangle(*qubits)
     
@@ -96,7 +96,7 @@ def test_w_state_graph_extraction():
     """Test: W state should be detected and produce appropriate graph."""
     print("\n=== Test: W State Graph Extraction ===")
     
-    program = QPLProgram("W State")
+    program = QRLProgram("W State")
     q0 = program.create_system()
     q1 = program.create_system()
     q2 = program.create_system()
@@ -122,7 +122,7 @@ def test_entanglement_structure_analysis():
     """Test: Analyze entanglement structure of various states."""
     print("\n=== Test: Entanglement Structure Analysis ===")
     
-    program = QPLProgram("Analysis Test")
+    program = QRLProgram("Analysis Test")
     
     # Test Bell state
     q0, q1 = program.create_system(), program.create_system()
@@ -146,7 +146,7 @@ def test_entanglement_structure_analysis():
 def main():
     """Run all graph extraction tests."""
     print("=" * 60)
-    print("  QPL STAGE 2 (PHASE 1): GRAPH EXTRACTION TESTS")
+    print("  QRL STAGE 2 (PHASE 1): GRAPH EXTRACTION TESTS")
     print("=" * 60)
     
     tests = [

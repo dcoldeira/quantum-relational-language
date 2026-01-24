@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
 """
-Quickstart demo for QPL
+Quickstart demo for QRL
 
 A simple demonstration showing the core concepts of Quantum Process Language.
 """
 
 import numpy as np
-from qpl import QPLProgram, create_question, QuestionType
+from qrl import QRLProgram, create_question, QuestionType
 
 
 def quick_demo():
-    """A simple demonstration of QPL concepts"""
-    print("=== QPL Quick Start ===")
+    """A simple demonstration of QRL concepts"""
+    print("=== QRL Quick Start ===")
     print("A demonstration of quantum relations and questions\n")
 
     # 1. Create a program
-    program = QPLProgram("Quick Demo")
-    print("1. Created QPL program")
+    program = QRLProgram("Quick Demo")
+    print("1. Created QRL program")
 
     # 2. Create two quantum systems
     qubit_a = program.create_system()
@@ -63,9 +63,9 @@ def quick_demo():
     for name in program.perspectives.keys():
         print(f"   - {name}")
 
-    # 8. Show key QPL concepts
+    # 8. Show key QRL concepts
     print("\n" + "="*60)
-    print("Key QPL Concepts Demonstrated:")
+    print("Key QRL Concepts Demonstrated:")
     print("="*60)
     print("✓ Relations over objects: Worked with QuantumRelation, not qubits")
     print("✓ Questions over measurements: Asked a question, got an answer")

@@ -2,7 +2,7 @@
 graphix Exploration Script
 
 This script explores the graphix library's Pattern data structure and compares it
-with QPL's MeasurementPattern to understand how to build a QPL → Perceval compiler.
+with QPL's MeasurementPattern to understand how to build a QRL → Perceval compiler.
 
 Goals:
 1. Understand graphix Pattern structure
@@ -40,16 +40,16 @@ except ImportError:
     GRAPHIX_PERCEVAL_AVAILABLE = False
     print("⚠ graphix-perceval not available (optional)")
 
-# Import QPL for comparison
+# Import QRL for comparison
 try:
     import sys
     sys.path.insert(0, '/home/testuser/development/qpl/quantum-process-language/src')
-    from qpl.mbqc import MeasurementPattern, Measurement, Correction
-    QPL_AVAILABLE = True
-    print("✓ QPL imported successfully")
+    from qrl.mbqc import MeasurementPattern, Measurement, Correction
+    QRL_AVAILABLE = True
+    print("✓ QRL imported successfully")
 except ImportError as e:
-    QPL_AVAILABLE = False
-    print(f"⚠ QPL not available: {e}")
+    QRL_AVAILABLE = False
+    print(f"⚠ QRL not available: {e}")
 
 print("\n" + "=" * 70)
 print("GRAPHIX PATTERN STRUCTURE EXPLORATION")
@@ -184,16 +184,16 @@ def create_ghz_state_graphix(n=3):
 
 def compare_with_qpl():
     """Compare graphix Pattern with QPL's MeasurementPattern."""
-    if not QPL_AVAILABLE:
-        print("\n⚠ Skipping QPL comparison (QPL not available)")
+    if not QRL_AVAILABLE:
+        print("\n⚠ Skipping QRL comparison (QRL not available)")
         return
 
     print("\n" + "=" * 70)
-    print("COMPARISON: graphix Pattern vs QPL MeasurementPattern")
+    print("COMPARISON: graphix Pattern vs QRL MeasurementPattern")
     print("=" * 70)
 
-    # Create QPL Bell state pattern
-    from qpl.mbqc import generate_bell_state_pattern
+    # Create QRL Bell state pattern
+    from qrl.mbqc import generate_bell_state_pattern
     qpl_pattern = generate_bell_state_pattern()
 
     # Create graphix Bell state pattern
@@ -201,7 +201,7 @@ def compare_with_qpl():
 
     print("\n--- Data Structure Comparison ---")
 
-    print("\nQPL MeasurementPattern attributes:")
+    print("\nQRL MeasurementPattern attributes:")
     print(f"  preparation: {qpl_pattern.preparation}")
     print(f"  entanglement: {qpl_pattern.entanglement}")
     print(f"  measurements: {qpl_pattern.measurements}")
@@ -215,7 +215,7 @@ def compare_with_qpl():
     print(f"  n_node: {graphix_pattern.n_node}")
 
     print("\n--- Structural Differences ---")
-    print("\nQPL Approach:")
+    print("\nQRL Approach:")
     print("  • Separates phases: preparation, entanglement, measurements, corrections")
     print("  • Explicit data structures for each phase")
     print("  • Relations-first: starts from QuantumRelation objects")
@@ -226,17 +226,17 @@ def compare_with_qpl():
     print("  • Graph-first: builds entanglement graph explicitly")
 
     print("\n--- Compatibility Analysis ---")
-    print("\nMapping QPL → graphix:")
-    print("  QPL preparation[i]           → graphix N(node=i)")
-    print("  QPL entanglement[(i,j)]      → graphix E(nodes=[i,j])")
-    print("  QPL measurements[k]          → graphix M(node=k, ...)")
-    print("  QPL corrections[c]           → graphix X/Z(node=..., domain=[...])")
+    print("\nMapping QRL → graphix:")
+    print("  QRL preparation[i]           → graphix N(node=i)")
+    print("  QRL entanglement[(i,j)]      → graphix E(nodes=[i,j])")
+    print("  QRL measurements[k]          → graphix M(node=k, ...)")
+    print("  QRL corrections[c]           → graphix X/Z(node=..., domain=[...])")
 
     print("\nCompatibility: ~80% overlap")
     print("Differences:")
-    print("  • graphix uses command sequence, QPL uses structured phases")
+    print("  • graphix uses command sequence, QRL uses structured phases")
     print("  • graphix has explicit plane/angle for measurements")
-    print("  • QPL has Measurement dataclass, graphix has M command")
+    print("  • QRL has Measurement dataclass, graphix has M command")
     print("  • graphix has s_domain/t_domain for dependent corrections")
 
 
@@ -309,9 +309,9 @@ def create_single_qubit_rotation_graphix():
 
 
 def summarize_findings():
-    """Summarize key findings for QPL → Perceval design."""
+    """Summarize key findings for QRL → Perceval design."""
     print("\n" + "=" * 70)
-    print("SUMMARY: KEY FINDINGS FOR QPL → PERCEVAL COMPILER")
+    print("SUMMARY: KEY FINDINGS FOR QRL → PERCEVAL COMPILER")
     print("=" * 70)
 
     print("\n1. graphix Pattern Structure:")
@@ -319,22 +319,22 @@ def summarize_findings():
     print("   • Input/output node tracking")
     print("   • Built-in simulation capabilities")
 
-    print("\n2. Conversion Strategy (QPL → graphix → Perceval):")
-    print("   • Option A: QPL → graphix → Perceval (leverage existing tools)")
-    print("   • Option B: QPL → Perceval directly (more control)")
+    print("\n2. Conversion Strategy (QRL → graphix → Perceval):")
+    print("   • Option A: QRL → graphix → Perceval (leverage existing tools)")
+    print("   • Option B: QRL → Perceval directly (more control)")
     print("   • Recommendation: Start with Option A, optimize later")
 
     print("\n3. Data Structure Mapping:")
-    print("   • QPL uses phase-separated structure")
+    print("   • QRL uses phase-separated structure")
     print("   • graphix uses sequential commands")
     print("   • Need converter: MeasurementPattern → Pattern")
 
     print("\n4. Next Steps:")
     print("   a. Install graphix-perceval: pip install graphix-perceval")
     print("   b. Study graphix-perceval source code")
-    print("   c. Implement QPL → graphix converter")
+    print("   c. Implement QRL → graphix converter")
     print("   d. Test on Bell, GHZ, teleportation patterns")
-    print("   e. Validate fidelity matches QPL simulation")
+    print("   e. Validate fidelity matches QRL simulation")
 
     print("\n5. Implementation Plan:")
     print("   • Create qpl/backends/graphix_adapter.py")

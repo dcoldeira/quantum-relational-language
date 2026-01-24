@@ -1,5 +1,5 @@
 """
-QPL to Qiskit compiler backend
+QRL to Qiskit compiler backend
 """
 
 from typing import Dict, Any
@@ -7,15 +7,15 @@ import qiskit
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
 from qiskit.circuit.library import CXGate, HGate
 
-from ..core import QPLProgram, QuantumRelation
+from ..core import QRLProgram, QuantumRelation
 
 
-def compile_to_qiskit(program: QPLProgram, **kwargs) -> QuantumCircuit:
+def compile_to_qiskit(program: QRLProgram, **kwargs) -> QuantumCircuit:
     """
-    Compile a QPL program to a Qiskit quantum circuit.
+    Compile a QRL program to a Qiskit quantum circuit.
 
     Args:
-        program: QPL program to compile
+        program: QRL program to compile
         **kwargs: Compilation options
 
     Returns:
@@ -35,7 +35,7 @@ def compile_to_qiskit(program: QPLProgram, **kwargs) -> QuantumCircuit:
     # Add metadata
     circuit.name = program.name
     circuit.metadata = {
-        'source': 'QPL',
+        'source': 'QRL',
         'perspectives': list(program.perspectives.keys()),
         'relations': len(program.relations)
     }

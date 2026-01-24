@@ -9,8 +9,8 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 import numpy as np
-from qpl import QPLProgram
-from qpl.mbqc import (
+from qrl import QRLProgram
+from qrl.mbqc import (
     generate_bell_state_pattern,
     generate_ghz_state_pattern,
     generate_single_qubit_gate_pattern,
@@ -110,7 +110,7 @@ def test_pattern_from_relation():
     """Test: Generate pattern directly from QuantumRelation."""
     print("\n=== Test: Pattern from Relation ===")
 
-    program = QPLProgram("Pattern from Relation")
+    program = QRLProgram("Pattern from Relation")
     q0 = program.create_system()
     q1 = program.create_system()
     bell = program.entangle(q0, q1)
@@ -210,7 +210,7 @@ def test_pattern_validation():
 
     # Invalid pattern should raise (measurement on unprepared qubit)
     try:
-        from qpl.mbqc import MeasurementPattern, Measurement
+        from qrl.mbqc import MeasurementPattern, Measurement
         invalid = MeasurementPattern(
             preparation=[0],
             entanglement=[],
@@ -297,7 +297,7 @@ def test_cz_pattern():
 def main():
     """Run all pattern generation tests."""
     print("=" * 60)
-    print("  QPL STAGE 2 (PHASE 2): PATTERN GENERATION TESTS")
+    print("  QRL STAGE 2 (PHASE 2): PATTERN GENERATION TESTS")
     print("=" * 60)
 
     tests = [

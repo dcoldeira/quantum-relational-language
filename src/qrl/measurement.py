@@ -1,5 +1,5 @@
 """
-Quantum measurement utilities for QPL
+Quantum measurement utilities for QRL
 
 Handles multi-qubit and partial measurements in a conceptually clear way.
 """

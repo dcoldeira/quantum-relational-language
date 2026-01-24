@@ -105,7 +105,7 @@ if __name__ == "__main__":
         print("✓ Basic photonic circuits working")
         print("=" * 60)
         print("\nPerceval version:", pcvl.__version__)
-        print("Ready for QPL integration!")
+        print("Ready for QRL integration!")
 
     except Exception as e:
         print(f"\n❌ Error: {e}")

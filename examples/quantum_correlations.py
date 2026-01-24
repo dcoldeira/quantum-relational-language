@@ -11,7 +11,7 @@ What this demonstrates:
 - This happens even if they're far apart (spooky action at a distance!)
 """
 
-from qpl import QPLProgram, create_question, QuestionType
+from qrl import QRLProgram, create_question, QuestionType
 
 
 def demonstrate_quantum_correlations(trials: int = 100):
@@ -32,7 +32,7 @@ def demonstrate_quantum_correlations(trials: int = 100):
 
     for trial in range(trials):
         # Create fresh entangled pair
-        program = QPLProgram(f"Trial {trial}")
+        program = QRLProgram(f"Trial {trial}")
         program.add_perspective("alice", {"location": "Earth"})
         program.add_perspective("bob", {"location": "Mars"})
 
@@ -52,7 +52,7 @@ def demonstrate_quantum_correlations(trials: int = 100):
 
     # Test different bases
     for trial in range(trials):
-        program = QPLProgram(f"Trial {trial}")
+        program = QRLProgram(f"Trial {trial}")
         program.add_perspective("alice", {"location": "Earth"})
         program.add_perspective("bob", {"location": "Mars"})
 

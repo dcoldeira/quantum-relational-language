@@ -1,5 +1,5 @@
 """
-Graph Extraction from QPL Relations
+Graph Extraction from QRL Relations
 
 Implements Algorithm 1 from the arXiv paper: Extract graph state structure
 from QuantumRelation objects.

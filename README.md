@@ -1,6 +1,8 @@
-# Quantum Process Language (QPL)
+# Quantum Relational Language (QRL)
 
 **A relations-first quantum programming language with a working MBQC compiler.**
+
+*Formerly known as QPL (Quantum Process Language)*
 
 [![Zenodo](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.18292199-blue)](https://doi.org/10.5281/zenodo.18292199)
 [![Tests](https://img.shields.io/badge/Tests-47%20passing-brightgreen)](tests/)
@@ -8,31 +10,31 @@
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue)](https://www.python.org/)
 
-## What is QPL?
+## What is QRL?
 
-QPL is a quantum programming language that treats **entanglement as a first-class primitive** and compiles directly to **Measurement-Based Quantum Computing (MBQC)** patterns—without intermediate gate decomposition.
+QRL is a quantum programming language that treats **entanglement as a first-class primitive** and compiles directly to **Measurement-Based Quantum Computing (MBQC)** patterns—without intermediate gate decomposition.
 
-Unlike gate-based languages (Qiskit, Cirq, Q#), QPL expresses quantum programs as relationships between systems, which map naturally to the cluster states and measurement patterns that power photonic quantum computers.
+Unlike gate-based languages (Qiskit, Cirq, Q#), QRL expresses quantum programs as relationships between systems, which map naturally to the cluster states and measurement patterns that power photonic quantum computers.
 
-## Why QPL?
+## Why QRL?
 
 **The Problem:** Current quantum languages force a gate-based mental model onto hardware that doesn't work that way. Photonic quantum computers use MBQC, but programmers must write gate circuits that get inefficiently converted.
 
-**QPL's Solution:** Write programs in terms of quantum relationships → compile directly to MBQC measurement patterns.
+**QRL's Solution:** Write programs in terms of quantum relationships → compile directly to MBQC measurement patterns.
 
 ```
 Traditional: Gates → Circuit → Decompose → MBQC patterns → Hardware
-QPL:         Relations → Graph extraction → MBQC patterns → Hardware
+QRL:         Relations → Graph extraction → MBQC patterns → Hardware
 ```
 
 ## Quick Start
 
 ```python
-from qpl import QPLProgram, create_question, QuestionType
-from qpl.mbqc import extract_graph, generate_pattern_from_relation
+from qrl import QRLProgram, create_question, QuestionType
+from qrl.mbqc import extract_graph, generate_pattern_from_relation
 
 # Create entangled quantum systems
-program = QPLProgram("Bell State Demo")
+program = QRLProgram("Bell State Demo")
 qubit_a = program.create_system()
 qubit_b = program.create_system()
 bell_pair = program.entangle(qubit_a, qubit_b)
@@ -55,8 +57,8 @@ print(f"Measurement result: {result}")
 ## Installation
 
 ```bash
-git clone https://github.com/dcoldeira/quantum-process-language.git
-cd quantum-process-language
+git clone https://github.com/dcoldeira/quantum-relational-language.git
+cd quantum-relational-language
 pip install -e .
 ```
 
@@ -91,11 +93,11 @@ python -m pytest tests/ -v
 
 ## MBQC Compilation Pipeline
 
-QPL implements the complete MBQC compilation pipeline:
+QRL implements the complete MBQC compilation pipeline:
 
 ```python
-from qpl import QPLProgram
-from qpl.mbqc import (
+from qrl import QRLProgram
+from qrl.mbqc import (
     extract_graph,
     generate_pattern_from_relation,
     generate_teleportation_pattern,
@@ -103,7 +105,7 @@ from qpl.mbqc import (
 )
 
 # 1. Create quantum relation
-program = QPLProgram("GHZ State")
+program = QRLProgram("GHZ State")
 qubits = [program.create_system() for _ in range(3)]
 ghz = program.entangle(*qubits)
 
@@ -139,7 +141,7 @@ result = program.ask(relation, question, perspective="alice")
 
 ### Automatic Graph Extraction
 ```python
-# QPL automatically determines cluster state topology
+# QRL automatically determines cluster state topology
 graph = extract_graph(relation)
 # Bell state → edge graph
 # GHZ state → star graph
@@ -156,8 +158,8 @@ pattern = generate_teleportation_pattern()
 ## Project Structure
 
 ```
-quantum-process-language/
-├── src/qpl/
+quantum-relational-language/
+├── src/qrl/
 │   ├── core.py              # QuantumRelation, QuantumQuestion, Perspective
 │   ├── measurement.py       # Measurement and basis transformations
 │   ├── tensor_utils.py      # n-qubit tensor operations
@@ -173,14 +175,14 @@ quantum-process-language/
 
 ## Documentation
 
-- **[Tutorial Book](https://dcoldeira.github.io/qpl-book/)** - 23 chapters on QPL concepts
+- **[Tutorial Book](https://dcoldeira.github.io/qpl-book/)** - 23 chapters on QRL concepts
 - **[Technical Blog](https://dcoldeira.github.io/)** - Development journey and deep dives
-- **[Published Paper](https://doi.org/10.5281/zenodo.18292199)** - "QPL: A Relations-First Programming Language for Measurement-Based Quantum Computing" (Zenodo preprint, January 2026)
+- **[Published Paper](https://doi.org/10.5281/zenodo.18292199)** - "QRL: A Relations-First Programming Language for Measurement-Based Quantum Computing" (Zenodo preprint, January 2026)
 
 ## Research Direction
 
-QPL explores whether relations-first programming can simplify compilation to MBQC, with applications to:
-- **Photonic quantum computers** (PsiQuantum, Xanadu, ORCA)
+QRL explores whether relations-first programming can simplify compilation to MBQC, with applications to:
+- **Photonic quantum computers** (Quandela, PsiQuantum, Xanadu, ORCA)
 - **Fault-tolerant surface codes**
 - **Neutral atom systems** with native graph state generation
 
@@ -197,7 +199,7 @@ Reality-check tool that tells you whether quantum computing makes sense for your
 
 ## Contributing
 
-QPL is a research project. Contributions welcome from researchers interested in:
+QRL is a research project. Contributions welcome from researchers interested in:
 - Quantum programming language design
 - MBQC theory and compilation
 - Photonic quantum computing

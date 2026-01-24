@@ -1,5 +1,5 @@
 """
-Core QPL implementation - The quantum process language runtime
+Core QRL implementation - The Quantum Relational Language runtime
 
 Author: David Coldeira (dcoldeira@gmail.com)
 License: MIT
@@ -51,7 +51,7 @@ class QuantumQuestion:
 class QuantumRelation:
     """
     An entangled relationship between quantum systems.
-    This is the fundamental unit in QPL - not individual qubits.
+    This is the fundamental unit in QRL - not individual qubits.
     """
     systems: List[int]  # Indices of systems in this relation
     state: np.ndarray   # Joint state vector/matrix
@@ -183,8 +183,8 @@ class Perspective:
         return outcome, collapsed_state
 
 
-class QPLProgram:
-    """A QPL program as a network of quantum relations"""
+class QRLProgram:
+    """A QRL program as a network of quantum relations"""
 
     def __init__(self, name: str = "Unnamed Program"):
         self.name = name
@@ -223,7 +223,7 @@ class QPLProgram:
     def entangle(self, *systems: int, state_type: str = "ghz") -> QuantumRelation:
         """
         Create entanglement between multiple systems.
-        This is a fundamental operation in QPL.
+        This is a fundamental operation in QRL.
 
         Args:
             *systems: Variable number of system IDs to entangle
@@ -413,11 +413,11 @@ class QPLProgram:
                 return relation
         return None
 
-    def _create_branch_copy(self) -> 'QPLProgram':
+    def _create_branch_copy(self) -> 'QRLProgram':
         """Create a copy of the program for superposition branching"""
         # Simplified implementation
         import copy
-        new_program = QPLProgram(f"{self.name}_branch")
+        new_program = QRLProgram(f"{self.name}_branch")
         new_program.relations = [copy.deepcopy(r) for r in self.relations]
         new_program.perspectives = copy.deepcopy(self.perspectives)
         new_program.system_counter = self.system_counter
@@ -450,7 +450,7 @@ class QPLProgram:
 
 
 # Convenience functions
-def entangle(program: QPLProgram, *systems: int, **kwargs) -> QuantumRelation:
+def entangle(program: QRLProgram, *systems: int, **kwargs) -> QuantumRelation:
     """
     Convenience function for creating entanglement.
 
@@ -461,13 +461,13 @@ def entangle(program: QPLProgram, *systems: int, **kwargs) -> QuantumRelation:
     """
     return program.entangle(*systems, **kwargs)
 
-def ask(program: QPLProgram, relation: QuantumRelation,
+def ask(program: QRLProgram, relation: QuantumRelation,
         question_type: Union[str, QuestionType, QuantumQuestion], **kwargs) -> Any:
     """
     Convenience function for asking questions.
 
     Args:
-        program: QPL program
+        program: QRL program
         relation: Quantum relation to measure
         question_type: Type of question or QuantumQuestion object
         **kwargs: Additional arguments including:
@@ -493,7 +493,7 @@ def ask(program: QPLProgram, relation: QuantumRelation,
     question = create_question(question_type, subsystem=subsystem, **kwargs)
     return program.ask(relation, question, perspective=perspective)
 
-def superposition(program: QPLProgram, branches: List[Callable], **kwargs):
+def superposition(program: QRLProgram, branches: List[Callable], **kwargs):
     """Convenience function for superposition execution"""
     return program.superposition(branches, **kwargs)
 

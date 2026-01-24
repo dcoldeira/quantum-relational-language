@@ -6,7 +6,7 @@ Demonstrates quantum correlations and tests Bell's inequality.
 
 NOTE: This is a simplified demonstration. For maximum Bell violation,
 we would need measurements at specific angles (22.5°, 67.5°, etc.).
-Currently, QPL only supports Z and X basis measurements.
+Currently, QRL only supports Z and X basis measurements.
 
 This example shows:
 ✓ Perfect correlations in entangled pairs
@@ -23,7 +23,7 @@ FUTURE: Add arbitrary rotation angles to QuestionType for true CHSH test
 """
 
 import numpy as np
-from qpl import QPLProgram, create_question, QuestionType
+from qrl import QRLProgram, create_question, QuestionType
 
 
 def measure_correlation(angle_alice: float, angle_bob: float, trials: int = 1000) -> float:
@@ -42,7 +42,7 @@ def measure_correlation(angle_alice: float, angle_bob: float, trials: int = 1000
 
     for _ in range(trials):
         # Create fresh entangled pair for each trial
-        program = QPLProgram("Bell Test Trial")
+        program = QRLProgram("Bell Test Trial")
 
         # Create perspectives
         program.add_perspective("alice", {"location": "Lab A"})

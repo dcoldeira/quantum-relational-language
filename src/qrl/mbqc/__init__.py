@@ -1,8 +1,8 @@
 """
-QPL MBQC Compiler Module
+QRL MBQC Compiler Module
 
 This module implements measurement-based quantum computing (MBQC) compilation
-for QPL programs. It converts relations-first quantum programs into measurement
+for QRL programs. It converts relations-first quantum programs into measurement
 patterns that can execute on photonic quantum computers.
 
 Main components:

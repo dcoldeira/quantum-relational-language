@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 """
-Tests for QPL Stage 1: n-qubit quantum relations
+Tests for QRL Stage 1: n-qubit quantum relations
 
 Tests GHZ states, n-qubit entanglement, partial measurements, and entanglement entropy.
 """
 
 import numpy as np
-from qpl import QPLProgram, create_question, QuestionType
+from qrl import QRLProgram, create_question, QuestionType
 
 
 def test_ghz_3qubit_creation():
     """Test creating a 3-qubit GHZ state"""
     print("\n=== Test: 3-Qubit GHZ State Creation ===")
 
-    program = QPLProgram("3-Qubit GHZ")
+    program = QRLProgram("3-Qubit GHZ")
 
     # Create 3 systems
     q0 = program.create_system()
@@ -45,7 +45,7 @@ def test_ghz_4qubit_creation():
     """Test creating a 4-qubit GHZ state"""
     print("\n=== Test: 4-Qubit GHZ State Creation ===")
 
-    program = QPLProgram("4-Qubit GHZ")
+    program = QRLProgram("4-Qubit GHZ")
 
     # Create 4 systems
     qubits = [program.create_system() for _ in range(4)]
@@ -73,7 +73,7 @@ def test_3qubit_measurement_same_basis():
     """Test measuring all qubits in same basis on GHZ state"""
     print("\n=== Test: 3-Qubit Same-Basis Measurements ===")
 
-    program = QPLProgram("GHZ Same Basis")
+    program = QRLProgram("GHZ Same Basis")
 
     # Create GHZ state
     q0, q1, q2 = program.create_system(), program.create_system(), program.create_system()
@@ -86,7 +86,7 @@ def test_3qubit_measurement_same_basis():
 
     for _ in range(num_trials):
         # Recreate GHZ for each trial
-        program_trial = QPLProgram("Trial")
+        program_trial = QRLProgram("Trial")
         q0t = program_trial.create_system()
         q1t = program_trial.create_system()
         q2t = program_trial.create_system()
@@ -122,7 +122,7 @@ def test_partial_measurement_3qubit():
     """Test partial measurement on 3-qubit GHZ state"""
     print("\n=== Test: Partial Measurement on 3-Qubit GHZ ===")
 
-    program = QPLProgram("Partial Measurement")
+    program = QRLProgram("Partial Measurement")
 
     # Create GHZ state
     q0 = program.create_system()
@@ -151,7 +151,7 @@ def test_w_state_creation():
     """Test creating a W state"""
     print("\n=== Test: W State Creation ===")
 
-    program = QPLProgram("W State")
+    program = QRLProgram("W State")
 
     # Create 3 systems
     q0 = program.create_system()
@@ -180,7 +180,7 @@ def test_backward_compatibility_bell():
     """Test that 2-qubit entanglement still works (backward compatibility)"""
     print("\n=== Test: Backward Compatibility (Bell State) ===")
 
-    program = QPLProgram("Bell Backward Compat")
+    program = QRLProgram("Bell Backward Compat")
 
     # Old syntax: entangle two qubits
     q0 = program.create_system()
@@ -203,7 +203,7 @@ def test_5qubit_ghz():
     """Test creating a 5-qubit GHZ state (stress test)"""
     print("\n=== Test: 5-Qubit GHZ State ===")
 
-    program = QPLProgram("5-Qubit GHZ")
+    program = QRLProgram("5-Qubit GHZ")
 
     # Create 5 systems
     qubits = [program.create_system() for _ in range(5)]
@@ -233,7 +233,7 @@ def test_5qubit_ghz():
 def run_all_tests():
     """Run all Stage 1 tests"""
     print("\n" + "="*60)
-    print("  QPL STAGE 1: N-QUBIT RELATIONS - TEST SUITE")
+    print("  QRL STAGE 1: N-QUBIT RELATIONS - TEST SUITE")
     print("="*60)
 
     tests = [
