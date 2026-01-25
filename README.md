@@ -175,7 +175,7 @@ quantum-relational-language/
 
 ## Documentation
 
-- **[Tutorial Book](https://dcoldeira.github.io/qpl-book/)** - 23 chapters on QRL concepts
+- **[Tutorial Book](https://dcoldeira.github.io/qrl-book/)** - 23 chapters on QRL concepts
 - **[Technical Blog](https://dcoldeira.github.io/)** - Development journey and deep dives
 - **[Published Paper](https://doi.org/10.5281/zenodo.18292199)** - "QRL: A Relations-First Programming Language for Measurement-Based Quantum Computing" (Zenodo preprint, January 2026)
 

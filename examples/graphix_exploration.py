@@ -2,12 +2,12 @@
 graphix Exploration Script
 
 This script explores the graphix library's Pattern data structure and compares it
-with QPL's MeasurementPattern to understand how to build a QRL → Perceval compiler.
+with QRL's MeasurementPattern to understand how to build a QRL → Perceval compiler.
 
 Goals:
 1. Understand graphix Pattern structure
 2. Create Bell and GHZ state patterns
-3. Compare with QPL's MeasurementPattern
+3. Compare with QRL's MeasurementPattern
 4. Test graphix-perceval integration if available
 """
 
@@ -43,7 +43,7 @@ except ImportError:
 # Import QRL for comparison
 try:
     import sys
-    sys.path.insert(0, '/home/testuser/development/qpl/quantum-process-language/src')
+    sys.path.insert(0, '/home/testuser/development/qrl/quantum-relational-language/src')
     from qrl.mbqc import MeasurementPattern, Measurement, Correction
     QRL_AVAILABLE = True
     print("✓ QRL imported successfully")
@@ -182,8 +182,8 @@ def create_ghz_state_graphix(n=3):
     return pattern
 
 
-def compare_with_qpl():
-    """Compare graphix Pattern with QPL's MeasurementPattern."""
+def compare_with_qrl():
+    """Compare graphix Pattern with QRL's MeasurementPattern."""
     if not QRL_AVAILABLE:
         print("\n⚠ Skipping QRL comparison (QRL not available)")
         return
@@ -194,7 +194,7 @@ def compare_with_qpl():
 
     # Create QRL Bell state pattern
     from qrl.mbqc import generate_bell_state_pattern
-    qpl_pattern = generate_bell_state_pattern()
+    qrl_pattern = generate_bell_state_pattern()
 
     # Create graphix Bell state pattern
     graphix_pattern = create_bell_state_graphix()
@@ -202,12 +202,12 @@ def compare_with_qpl():
     print("\n--- Data Structure Comparison ---")
 
     print("\nQRL MeasurementPattern attributes:")
-    print(f"  preparation: {qpl_pattern.preparation}")
-    print(f"  entanglement: {qpl_pattern.entanglement}")
-    print(f"  measurements: {qpl_pattern.measurements}")
-    print(f"  corrections: {qpl_pattern.corrections}")
-    print(f"  output_qubits: {qpl_pattern.output_qubits}")
-    print(f"  num_qubits: {qpl_pattern.num_qubits}")
+    print(f"  preparation: {qrl_pattern.preparation}")
+    print(f"  entanglement: {qrl_pattern.entanglement}")
+    print(f"  measurements: {qrl_pattern.measurements}")
+    print(f"  corrections: {qrl_pattern.corrections}")
+    print(f"  output_qubits: {qrl_pattern.output_qubits}")
+    print(f"  num_qubits: {qrl_pattern.num_qubits}")
 
     print("\ngraphix Pattern attributes:")
     print(f"  input_nodes: {graphix_pattern.input_nodes}")
@@ -337,8 +337,8 @@ def summarize_findings():
     print("   e. Validate fidelity matches QRL simulation")
 
     print("\n5. Implementation Plan:")
-    print("   • Create qpl/backends/graphix_adapter.py")
-    print("   • Function: qpl_pattern_to_graphix(pattern: MeasurementPattern) → Pattern")
+    print("   • Create qrl/backends/graphix_adapter.py")
+    print("   • Function: qrl_pattern_to_graphix(pattern: MeasurementPattern) → Pattern")
     print("   • Then use graphix-perceval for Perceval compilation")
 
     print("\n" + "=" * 70)
@@ -358,8 +358,8 @@ if __name__ == "__main__":
         # 4. Create single-qubit rotation
         rotation_pattern = create_single_qubit_rotation_graphix()
 
-        # 5. Compare with QPL
-        compare_with_qpl()
+        # 5. Compare with QRL
+        compare_with_qrl()
 
         # 6. Test graphix-perceval if available
         test_graphix_perceval()

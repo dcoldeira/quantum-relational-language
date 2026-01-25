@@ -9,7 +9,7 @@ from qrl import QRLProgram, entangle, ask, create_question, QuestionType
 
 def quantum_teleportation():
     """
-    Demonstrate quantum teleportation using QPL.
+    Demonstrate quantum teleportation using QRL.
     Alice wants to teleport a quantum state to Bob.
     """
     print("=== Quantum Teleportation in QRL ===")
@@ -40,7 +40,7 @@ def quantum_teleportation():
 
     # Step 3: Entangle message with Alice's half
     print("\n3. Entangling message with Alice's half of Bell pair...")
-    # In full QPL, we'd have multi-system operations
+    # In full QRL, we'd have multi-system operations
     # For now, we'll simulate this step
 
     # Step 4: Alice measures both her qubits
