@@ -5,7 +5,7 @@
 *Formerly known as QPL (Quantum Process Language)*
 
 [![Zenodo](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.18292199-blue)](https://doi.org/10.5281/zenodo.18292199)
-[![Tests](https://img.shields.io/badge/Tests-84%20passing-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-80%20passing-brightgreen)](tests/)
 [![Lines](https://img.shields.io/badge/Code-~4200%20lines-blue)](src/)
 [![Photonic](https://img.shields.io/badge/Photonic-Verified-purple)](examples/quandela/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -120,11 +120,11 @@ Pipeline: QRL Relations → MBQC Pattern → Perceval Circuit → Quandela Hardw
 ### Validation
 
 ```bash
-# Run all 84 tests
+# Run all tests
 python -m pytest tests/ -v
 ```
 
-- **84 tests passing**
+- **80 tests passing** (+ 16 skipped pending Perceval)
 - **Bell correlations** verified (CHSH violation)
 - **Teleportation fidelity = 1.0**
 - **Photonic pipeline** validated locally and on cloud
@@ -245,11 +245,36 @@ QRL's approach connects to foundational physics:
 ### Current Focus: `qrl-physics`
 
 We're building a physics library to explore these questions empirically:
-- **Bell inequalities** (CHSH) - Express violations relationally
+- **Bell inequalities** (CHSH) - Express violations relationally ✅
 - **GHZ paradox** - Logical (not statistical) demonstration of non-locality
 - **Full pipeline demos** - Relations → MBQC → photonic hardware → results
 
 **The goal:** Investigate whether the relational perspective reveals insights that traditional approaches miss.
+
+#### Example: Bell Test in QRL
+
+```python
+from qrl.physics import BellTest
+
+# The relational approach: describe correlations, derive predictions
+test = BellTest()
+
+# What does quantum mechanics predict for this relation?
+print(test.predict())
+# -> Predicted CHSH parameter: S = 2.8284
+# -> Classical limit: 2.0
+# -> Prediction: Bell inequality WILL be violated
+
+# Run the test and compare theory to observation
+print(test.compare(trials=2000))
+# -> S parameter: Theory 2.8284, Observed 2.8340
+# -> Violated: YES
+
+# The Bell relation exhibits correlations that
+# cannot be explained by local hidden variables.
+```
+
+This is the QRL philosophy in action: we didn't program a Bell test circuit—we described the correlations, and the violation emerged.
 
 ### Open Questions
 
