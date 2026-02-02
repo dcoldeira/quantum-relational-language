@@ -1,26 +1,47 @@
 # Quantum Relational Language (QRL)
 
-**A relations-first quantum programming language with a working MBQC compiler.**
+**A relations-first approach to quantum computing: describe the correlations, derive the predictions.**
 
 *Formerly known as QPL (Quantum Process Language)*
 
 [![Zenodo](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.18292199-blue)](https://doi.org/10.5281/zenodo.18292199)
-[![Tests](https://img.shields.io/badge/Tests-47%20passing-brightgreen)](tests/)
-[![Physics](https://img.shields.io/badge/Physics-Verified-blue)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-84%20passing-brightgreen)](tests/)
+[![Lines](https://img.shields.io/badge/Code-~4200%20lines-blue)](src/)
+[![Photonic](https://img.shields.io/badge/Photonic-Verified-purple)](examples/quandela/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue)](https://www.python.org/)
 
+## Vision
+
+**QRL is a physics modeling tool first, quantum programming framework second.**
+
+Most quantum frameworks ask: *"How do I run this circuit on hardware?"*
+
+QRL asks: *"Given these physical relations, what does quantum mechanics predict?"*
+
+This flips the question. Instead of programming a computer, you're **modeling physics**. The relational formalism matches how quantum mechanics actually works—correlations between subsystems are the fundamental reality, not gates acting on states.
+
+> **The hypothesis:** Because QRL's relational approach aligns with the structure of quantum physics, it may reveal insights that gate-centric formalisms obscure. This is a research proposition we're actively exploring.
+
 ## What is QRL?
 
-QRL is a quantum programming language that treats **entanglement as a first-class primitive** and compiles directly to **Measurement-Based Quantum Computing (MBQC)** patterns—without intermediate gate decomposition.
+QRL treats **entanglement as a first-class primitive** and compiles directly to **Measurement-Based Quantum Computing (MBQC)** patterns—without intermediate gate decomposition.
 
-Unlike gate-based languages (Qiskit, Cirq, Q#), QRL expresses quantum programs as relationships between systems, which map naturally to the cluster states and measurement patterns that power photonic quantum computers.
+Unlike gate-based languages (Qiskit, Cirq, Q#), QRL expresses quantum programs as relationships between systems, which map naturally to:
+- The cluster states and measurement patterns that power **photonic quantum computers**
+- The correlations that define **Bell tests** and foundational quantum experiments
+- The relational structure of **quantum networks** and protocols
 
-## Why QRL?
+## Why Relations First?
 
-**The Problem:** Current quantum languages force a gate-based mental model onto hardware that doesn't work that way. Photonic quantum computers use MBQC, but programmers must write gate circuits that get inefficiently converted.
+**The insight:** Quantum mechanics is fundamentally about correlations between subsystems. Bell's theorem, GHZ paradox, teleportation—these aren't about gates, they're about *relations*.
 
-**QRL's Solution:** Write programs in terms of quantum relationships → compile directly to MBQC measurement patterns.
+```
+Gate-based thinking:  "Apply CNOT, then Hadamard, then measure"
+Relational thinking:  "A and B are maximally correlated—what do measurements reveal?"
+```
+
+QRL lets you describe the correlations directly. The compilation to hardware follows from the physics.
 
 ```
 Traditional: Gates → Circuit → Decompose → MBQC patterns → Hardware
@@ -66,30 +87,47 @@ pip install -e .
 
 ## Implementation Status
 
-### Core Language (Complete)
-- **QuantumRelation** - Entanglement as first-class citizen
-- **QuantumQuestion** - Measurement with explicit basis context
-- **Perspective** - Observer-relative quantum states
-- **n-qubit support** - GHZ states (tested to 5 qubits), W states
+**~4,200 lines of code | 84 tests passing | Full photonic pipeline verified**
 
-### MBQC Compiler (Complete)
+### Stage 0-3: Core Language & MBQC Compiler (Complete)
 
 | Component | Status | Description |
 |-----------|--------|-------------|
+| QuantumRelation | ✅ | Entanglement as first-class citizen |
+| n-qubit States | ✅ | GHZ states (tested to 5 qubits), W states, Bell pairs |
 | Graph Extraction | ✅ | `extract_graph()` - Relations → cluster state topology |
 | Pattern Generation | ✅ | Bell, GHZ, H/X/Z/S/T gates, CNOT, CZ, rotations |
 | Adaptive Corrections | ✅ | Pauli corrections based on measurement outcomes |
 | Teleportation | ✅ | Full protocol with fidelity = 1.0 |
 
+### Stage 4: Photonic Integration (Complete)
+
+QRL compiles to real photonic quantum hardware via [Perceval](https://github.com/Quandela/Perceval) and [Quandela Cloud](https://cloud.quandela.com/).
+
+| Component | Status | Description |
+|-----------|--------|-------------|
+| QRL → Perceval | ✅ | Direct path-encoded circuit generation |
+| Local Simulation | ✅ | SLOS backend (Bell, GHZ validated) |
+| Cloud Connection | ✅ | Quandela `sim:belenos` verified |
+| Full Pipeline | ✅ | QRL → MBQC → Perceval → Cloud → Results |
+
+```
+Pipeline: QRL Relations → MBQC Pattern → Perceval Circuit → Quandela Hardware
+```
+
+**Validated on cloud:** Bell state correlations confirmed on `sim:belenos` (Quandela's 12-qubit photonic simulator).
+
 ### Validation
-- **47 tests passing**
-- **100% physics correctness** on Bell correlations
-- **Teleportation fidelity verified**
 
 ```bash
-# Run tests
+# Run all 84 tests
 python -m pytest tests/ -v
 ```
+
+- **84 tests passing**
+- **Bell correlations** verified (CHSH violation)
+- **Teleportation fidelity = 1.0**
+- **Photonic pipeline** validated locally and on cloud
 
 ## MBQC Compilation Pipeline
 
@@ -163,34 +201,61 @@ quantum-relational-language/
 │   ├── core.py              # QuantumRelation, QuantumQuestion, Perspective
 │   ├── measurement.py       # Measurement and basis transformations
 │   ├── tensor_utils.py      # n-qubit tensor operations
-│   └── mbqc/                 # MBQC compiler
-│       ├── graph_extraction.py      # Relations → graphs
-│       ├── pattern_generation.py    # Graphs → measurement patterns
-│       ├── adaptive_corrections.py  # Pauli corrections, teleportation
-│       └── measurement_pattern.py   # MeasurementPattern dataclass
-├── tests/                    # 47 tests
-├── examples/                 # Working examples
-└── papers/                   # Published paper (Zenodo)
+│   ├── mbqc/                # MBQC compiler
+│   │   ├── graph_extraction.py      # Relations → graphs
+│   │   ├── pattern_generation.py    # Graphs → measurement patterns
+│   │   ├── adaptive_corrections.py  # Pauli corrections, teleportation
+│   │   └── measurement_pattern.py   # MeasurementPattern dataclass
+│   └── backends/            # Hardware backends
+│       ├── perceval_path_adapter.py # QRL → Perceval (path-encoded)
+│       └── graphix_adapter.py       # QRL → graphix
+├── tests/                   # 84 tests
+├── examples/
+│   └── quandela/            # Photonic cloud examples
+└── papers/                  # Published paper (Zenodo)
 ```
 
 ## Documentation
 
-- **[Tutorial Book](https://dcoldeira.github.io/qrl-book/)** - 23 chapters on QRL concepts
-- **[Technical Blog](https://dcoldeira.github.io/)** - Development journey and deep dives
-- **[Published Paper](https://doi.org/10.5281/zenodo.18292199)** - "QRL: A Relations-First Programming Language for Measurement-Based Quantum Computing" (Zenodo preprint, January 2026)
+- **[Tutorial Book](https://dcoldeira.github.io/qrl-book/)** - Comprehensive guide to QRL concepts and usage
+- **[Technical Blog](https://dcoldeira.github.io/)** - Development journey, deep dives, and research notes
+- **[Published Paper](https://doi.org/10.5281/zenodo.18292199)** - "QRL: A Relations-First Programming Language for Measurement-Based Quantum Computing" (Zenodo, January 2026)
+- **[Photonic Examples](examples/quandela/)** - Working examples for Quandela Cloud integration
 
 ## Research Direction
 
-QRL explores whether relations-first programming can simplify compilation to MBQC, with applications to:
-- **Photonic quantum computers** (Quandela, PsiQuantum, Xanadu, ORCA)
-- **Fault-tolerant surface codes**
-- **Neutral atom systems** with native graph state generation
+### Core Thesis
 
-### Open Research Questions
+QRL explores whether a **relations-first formalism**—where correlations are primitives, not derived properties—offers genuine advantages for:
 
-1. Can relations-first abstractions reduce MBQC compilation overhead vs gate-based?
-2. Can type systems enforce quantum constraints (no-cloning) at compile time?
-3. How do these abstractions interface with topological error correction?
+1. **Understanding quantum physics:** Does describing correlations directly reveal structure that gate-centric approaches obscure?
+2. **MBQC compilation:** Can relational specifications compile more naturally to measurement-based patterns?
+3. **Photonic hardware:** Does the relational model align better with linear optical quantum computing?
+
+### Theoretical Foundations
+
+QRL's approach connects to foundational physics:
+
+| Concept | Connection to QRL |
+|---------|-------------------|
+| **Relational QM** (Rovelli) | Properties exist only relative to other systems—QRL models this directly |
+| **Bell's Theorem** | Correlations without local hidden variables—relations ARE the reality |
+| **MBQC** (Raussendorf-Briegel) | Computation via measurements on entangled states—natural fit for relations |
+
+### Current Focus: `qrl-physics`
+
+We're building a physics library to explore these questions empirically:
+- **Bell inequalities** (CHSH) - Express violations relationally
+- **GHZ paradox** - Logical (not statistical) demonstration of non-locality
+- **Full pipeline demos** - Relations → MBQC → photonic hardware → results
+
+**The goal:** Investigate whether the relational perspective reveals insights that traditional approaches miss.
+
+### Open Questions
+
+1. Does relational framing make Bell/GHZ physics clearer than circuit simulation?
+2. What patterns emerge when you specify correlations directly?
+3. Can we find examples where QRL reveals something non-obvious about the physics?
 
 ## Related Projects
 
@@ -199,11 +264,12 @@ Reality-check tool that tells you whether quantum computing makes sense for your
 
 ## Contributing
 
-QRL is a research project. Contributions welcome from researchers interested in:
-- Quantum programming language design
-- MBQC theory and compilation
-- Photonic quantum computing
-- Formal verification of quantum programs
+QRL is an active research project exploring relations-first quantum computing. Contributions welcome from researchers interested in:
+
+- **Foundations of quantum mechanics** - Relational QM, Bell inequalities, contextuality
+- **MBQC theory and compilation** - Measurement patterns, graph states, flow conditions
+- **Photonic quantum computing** - Linear optics, path encoding, Perceval/Quandela
+- **Quantum programming languages** - Type systems, compilation, formal verification
 
 ## Contact
 
