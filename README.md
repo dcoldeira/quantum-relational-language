@@ -248,7 +248,7 @@ QRL's approach connects to foundational physics:
 We're building a physics library to explore these questions empirically:
 - **Bell inequalities** (CHSH) - Express violations relationally ✅ (33 tests)
 - **GHZ paradox & Mermin inequality** - Logical demonstration of non-locality ✅ (55 tests)
-- **Full pipeline demos** - Relations → MBQC → photonic hardware → results (in progress)
+- **Full pipeline demos** - Relations → MBQC → photonic hardware → results ✅ (interactive demo)
 
 **The goal:** Investigate whether the relational perspective reveals insights that traditional approaches miss.
 
@@ -276,6 +276,28 @@ print(test.compare(trials=2000))
 ```
 
 This is the QRL philosophy in action: we didn't program a Bell test circuit—we described the correlations, and the violation emerged.
+
+#### Running the Interactive Demo
+
+Try the full `qrl-physics` demonstration:
+
+```bash
+# Full interactive demo (5 sections, ~5 minutes)
+python -m qrl.physics.demo
+
+# Quick mode (fewer trials, ~1 minute)
+python -m qrl.physics.demo --quick
+
+# Run specific section
+python -m qrl.physics.demo --section 3  # GHZ paradox only
+```
+
+The demo showcases:
+1. **Relations First** - Creating Bell and GHZ relations
+2. **Bell Test** - CHSH inequality violation (S ≈ 2.83)
+3. **GHZ Test** - GHZ paradox and Mermin inequality (M = 4)
+4. **MBQC Pipeline** - Compilation from relations to measurement patterns
+5. **Photonic Execution** - Full QRL → Perceval → Quandela pipeline
 
 ### Open Questions
 
