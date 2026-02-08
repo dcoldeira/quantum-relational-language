@@ -32,6 +32,9 @@ docs = [
     "sphinx-rtd-theme>=1.0",
 ]
 
+[project.scripts]
+qrl = "qrl.cli:main"
+
 [project.urls]
 Homepage = "https://github.com/dcoldeira/quantum-relational-language"
 Documentation = "https://github.com/dcoldeira/quantum-relational-language/docs"
