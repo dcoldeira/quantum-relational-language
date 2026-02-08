@@ -80,10 +80,68 @@ print(f"Measurement result: {result}")
 ```bash
 git clone https://github.com/dcoldeira/quantum-relational-language.git
 cd quantum-relational-language
+
+# Create and activate a virtual environment
+python3 -m venv .venv
+source .venv/bin/activate    # Linux/macOS
+# .venv\Scripts\activate     # Windows
+
+# Install QRL (editable mode for development)
 pip install -e .
 ```
 
 **Requirements:** Python 3.8+, NumPy, NetworkX
+
+**Optional backends** (install as needed):
+```bash
+pip install perceval-quandela   # Photonic compilation + Quandela Cloud
+pip install graphix              # Graph-state MBQC backend
+```
+
+## CLI
+
+Installing QRL provides the `qrl` command. Run `qrl help` for the full usage guide.
+
+```bash
+# Run experiments
+qrl run bell --shots 500 -v         # Bell/CHSH inequality test
+qrl run ghz --qubits 4              # GHZ/Mermin inequality test
+qrl run demo --quick                # Interactive physics demo
+
+# Inspect compilation artifacts
+qrl inspect graph bell              # Graph state topology
+qrl inspect pattern ghz             # MBQC measurement pattern
+
+# Compile to backends
+qrl compile bell --target perceval  # Compile to Perceval circuit
+qrl compile ghz --target graphix    # Compile to graphix pattern
+
+# Cloud execution (requires QUANDELA_TOKEN)
+qrl cloud status                    # Check platform availability
+qrl cloud run bell                  # Run on Quandela sim:belenos
+
+# Tools
+qrl info                            # Version, dependencies, source stats
+qrl shell                           # Interactive REPL
+```
+
+### Interactive REPL
+
+`qrl shell` starts an interactive session with tab completion:
+
+```
+$ qrl shell
+qrl> entangle mybell 2
+Created 'mybell': 2-qubit bell relation
+qrl> graph mybell
+Graph for 'mybell':
+  Nodes: [0, 1]
+  Edges: [(0, 1)]
+qrl> compile mybell
+qrl> chsh --shots 500
+S = 2.8200  (limit 2.0)  VIOLATED
+qrl> quit
+```
 
 ## Implementation Status
 
@@ -199,6 +257,7 @@ pattern = generate_teleportation_pattern()
 ```
 quantum-relational-language/
 ├── src/qrl/
+│   ├── cli.py               # CLI entry point (qrl command)
 │   ├── core.py              # QuantumRelation, QuantumQuestion, Perspective
 │   ├── measurement.py       # Measurement and basis transformations
 │   ├── tensor_utils.py      # n-qubit tensor operations
@@ -283,13 +342,13 @@ Try the full `qrl-physics` demonstration:
 
 ```bash
 # Full interactive demo (5 sections, ~5 minutes)
-python -m qrl.physics.demo
+qrl run demo
 
 # Quick mode (fewer trials, ~1 minute)
-python -m qrl.physics.demo --quick
+qrl run demo --quick
 
 # Run specific section
-python -m qrl.physics.demo --section 3  # GHZ paradox only
+qrl run demo --section 3  # GHZ paradox only
 ```
 
 The demo showcases:
