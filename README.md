@@ -5,8 +5,8 @@
 *Formerly known as QPL (Quantum Process Language)*
 
 [![Zenodo](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.18292199-blue)](https://doi.org/10.5281/zenodo.18292199)
-[![Tests](https://img.shields.io/badge/Tests-135%20passing-brightgreen)](tests/)
-[![Lines](https://img.shields.io/badge/Code-~4800%20lines-blue)](src/)
+[![Tests](https://img.shields.io/badge/Tests-206%20passing-brightgreen)](tests/)
+[![Lines](https://img.shields.io/badge/Code-~6300%20lines-blue)](src/)
 [![Photonic](https://img.shields.io/badge/Photonic-Verified-purple)](examples/quandela/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue)](https://www.python.org/)
@@ -145,7 +145,7 @@ qrl> quit
 
 ## Implementation Status
 
-**~4,800 lines of code | 135 tests passing | Full photonic pipeline verified**
+**~6,300 lines of code | 206 tests passing | Full photonic pipeline verified**
 
 ### Stage 0-3: Core Language & MBQC Compiler (Complete)
 
@@ -182,7 +182,7 @@ Pipeline: QRL Relations → MBQC Pattern → Perceval Circuit → Quandela Hardw
 python -m pytest tests/ -v
 ```
 
-- **135 tests passing** (+ 17 skipped)
+- **206 tests passing**
 - **Bell correlations** verified (CHSH violation S = 2.83)
 - **GHZ paradox** demonstrated (Mermin inequality M = 4, classical limit 2)
 - **Teleportation fidelity = 1.0**
@@ -269,7 +269,7 @@ quantum-relational-language/
 │   └── backends/            # Hardware backends
 │       ├── perceval_path_adapter.py # QRL → Perceval (path-encoded)
 │       └── graphix_adapter.py       # QRL → graphix
-├── tests/                   # 135 tests
+├── tests/                   # 206 tests
 ├── examples/
 │   └── quandela/            # Photonic cloud examples
 └── papers/                  # Published paper (Zenodo)
