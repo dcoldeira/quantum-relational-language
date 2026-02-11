@@ -5,7 +5,7 @@
 *Formerly known as QPL (Quantum Process Language)*
 
 [![Zenodo](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.18292199-blue)](https://doi.org/10.5281/zenodo.18292199)
-[![Tests](https://img.shields.io/badge/Tests-206%20passing-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-218%20passing-brightgreen)](tests/)
 [![Lines](https://img.shields.io/badge/Code-~6300%20lines-blue)](src/)
 [![Photonic](https://img.shields.io/badge/Photonic-Verified-purple)](examples/quandela/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -94,6 +94,7 @@ pip install -e .
 
 **Optional backends** (install as needed):
 ```bash
+pip install pennylane            # PennyLane backend (Xanadu / simulation)
 pip install perceval-quandela   # Photonic compilation + Quandela Cloud
 pip install graphix              # Graph-state MBQC backend
 ```
@@ -145,7 +146,7 @@ qrl> quit
 
 ## Implementation Status
 
-**~6,300 lines of code | 206 tests passing | Full photonic pipeline verified**
+**~6,500 lines of code | 218 tests passing | Full photonic pipeline verified**
 
 ### Stage 0-3: Core Language & MBQC Compiler (Complete)
 
@@ -160,20 +161,22 @@ qrl> quit
 
 ### Stage 4: Photonic Integration (Complete)
 
-QRL compiles to real photonic quantum hardware via [Perceval](https://github.com/Quandela/Perceval) and [Quandela Cloud](https://cloud.quandela.com/).
+QRL compiles to photonic platforms via [Perceval](https://github.com/Quandela/Perceval)/[Quandela Cloud](https://cloud.quandela.com/) and [PennyLane](https://pennylane.ai/).
 
 | Component | Status | Description |
 |-----------|--------|-------------|
 | QRL → Perceval | ✅ | Direct path-encoded circuit generation |
-| Local Simulation | ✅ | SLOS backend (Bell, GHZ validated) |
+| QRL → PennyLane | ✅ | Mid-circuit measurements + adaptive corrections |
+| Local Simulation | ✅ | SLOS backend + PennyLane default.qubit |
 | Cloud Connection | ✅ | Quandela `sim:belenos` verified |
-| Full Pipeline | ✅ | QRL → MBQC → Perceval → Cloud → Results |
+| Full Pipeline | ✅ | QRL → MBQC → Backend → Results |
 
 ```
-Pipeline: QRL Relations → MBQC Pattern → Perceval Circuit → Quandela Hardware
+Pipeline: QRL Relations → MBQC Pattern ─┬─→ Perceval → Quandela
+                                         └─→ PennyLane → Simulation
 ```
 
-**Validated on cloud:** Bell state correlations confirmed on `sim:belenos` (Quandela's 12-qubit photonic simulator).
+**Validated on cloud:** Bell state correlations confirmed on `sim:belenos` (Quandela's 12-qubit photonic platform).
 
 ### Validation
 
@@ -182,7 +185,7 @@ Pipeline: QRL Relations → MBQC Pattern → Perceval Circuit → Quandela Hardw
 python -m pytest tests/ -v
 ```
 
-- **206 tests passing**
+- **218 tests passing**
 - **Bell correlations** verified (CHSH violation S = 2.83)
 - **GHZ paradox** demonstrated (Mermin inequality M = 4, classical limit 2)
 - **Teleportation fidelity = 1.0**
@@ -267,10 +270,12 @@ quantum-relational-language/
 │   │   ├── adaptive_corrections.py  # Pauli corrections, teleportation
 │   │   └── measurement_pattern.py   # MeasurementPattern dataclass
 │   └── backends/            # Hardware backends
+│       ├── pennylane_adapter.py     # QRL → PennyLane
 │       ├── perceval_path_adapter.py # QRL → Perceval (path-encoded)
 │       └── graphix_adapter.py       # QRL → graphix
-├── tests/                   # 206 tests
+├── tests/                   # 218 tests
 ├── examples/
+│   ├── pennylane/           # PennyLane backend examples
 │   └── quandela/            # Photonic cloud examples
 └── papers/                  # Published paper (Zenodo)
 ```
@@ -281,6 +286,7 @@ quantum-relational-language/
 - **[Technical Blog](https://dcoldeira.github.io/)** - Development journey, deep dives, and research notes
 - **[Published Paper](https://doi.org/10.5281/zenodo.18292199)** - "QRL: A Relations-First Programming Language for Measurement-Based Quantum Computing" (Zenodo, January 2026)
 - **[Photonic Examples](examples/quandela/)** - Working examples for Quandela Cloud integration
+- **[PennyLane Examples](examples/pennylane/)** - Cross-platform MBQC via PennyLane
 
 ## Research Direction
 
