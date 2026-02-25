@@ -32,6 +32,7 @@ import numpy as np
 from typing import Tuple, List, Dict, Optional
 from dataclasses import dataclass
 from enum import Enum
+from itertools import product as iter_product
 
 # Import QRL core
 from ..core import (
@@ -431,6 +432,82 @@ def mermin_test(
     return result
 
 
+def mermin_test_n(
+    n: int,
+    trials: int = 1000,
+    verbose: bool = True
+) -> MerminResult:
+    """
+    Perform a Mermin inequality test for an n-qubit GHZ state.
+
+    Uses all n-qubit X/Y measurement settings with an even number of Y's —
+    the settings for which |GHZ_n⟩ is an eigenstate. The Mermin parameter is:
+
+        M_n = sum_{s: even Y} (-1)^(n_Y/2) * <s>
+
+    For the GHZ state every term contributes +1, giving M_n = 2^(n-1).
+    Classical limit: 2^(ceil((n-1)/2)).
+
+    Args:
+        n: Number of qubits (>= 3)
+        trials: Number of trials per measurement setting
+        verbose: Whether to print progress
+
+    Returns:
+        MerminResult with full test results
+    """
+    import math
+
+    settings = [
+        ''.join(ops)
+        for ops in iter_product('XY', repeat=n)
+        if ''.join(ops).count('Y') % 2 == 0
+    ]
+
+    if verbose:
+        print(f"Mermin Inequality Test ({n} qubits)")
+        print("=" * 50)
+        print(f"Measurement settings: {len(settings)}")
+        print(f"Trials per setting: {trials}")
+        print()
+        print("Measuring correlations...")
+
+    correlations = {}
+    for setting in settings:
+        corr, _ = ghz_correlation(setting, trials)
+        correlations[f'⟨{setting}⟩'] = corr
+
+    # M_n = sum of (-1)^(n_Y/2) * correlation
+    M = sum(
+        ((-1) ** (s.count('Y') // 2)) * correlations[f'⟨{s}⟩']
+        for s in settings
+    )
+
+    quantum_max = float(2 ** (n - 1))
+    classical_limit = float(2 ** math.ceil((n - 1) / 2))
+    violated = abs(M) > classical_limit
+
+    result = MerminResult(
+        M=M,
+        correlations=correlations,
+        violated=violated,
+        classical_limit=classical_limit,
+        quantum_maximum=quantum_max,
+        n_qubits=n,
+        trials_per_setting=trials,
+    )
+
+    if verbose:
+        print()
+        print(result)
+        if violated:
+            print()
+            print(f"The {n}-qubit GHZ relation exhibits correlations that")
+            print("CANNOT be explained by local hidden variables.")
+
+    return result
+
+
 # =============================================================================
 # GHZ Paradox Test (Logical Contradiction)
 # =============================================================================
@@ -623,10 +700,19 @@ class GHZTest:
 
     @property
     def theoretical_correlations(self) -> Dict[str, float]:
-        """Theoretical correlations for 3-qubit case."""
-        if self.n_qubits != 3:
-            raise NotImplementedError("Only 3-qubit case implemented")
-        return theoretical_mermin_3()
+        """Theoretical correlations for n-qubit GHZ state.
+
+        Returns all X/Y settings with even Y count — the eigenstates of |GHZ_n⟩.
+        """
+        if self.n_qubits == 3:
+            return theoretical_mermin_3()
+        correlations = {}
+        for ops in iter_product('XY', repeat=self.n_qubits):
+            ops_str = ''.join(ops)
+            if ops_str.count('Y') % 2 == 0:
+                ev = theoretical_ghz_eigenvalue(ops_str)
+                correlations[f'⟨{ops_str}⟩'] = float(ev)
+        return correlations
 
     def predict(self) -> str:
         """
@@ -690,9 +776,9 @@ class GHZTest:
         Returns:
             MerminResult with test results
         """
-        if self.n_qubits != 3:
-            raise NotImplementedError("Only 3-qubit Mermin test implemented")
-        return mermin_test(trials, verbose)
+        if self.n_qubits == 3:
+            return mermin_test(trials, verbose)
+        return mermin_test_n(self.n_qubits, trials, verbose)
 
     def compare(self, trials: int = 1000) -> str:
         """

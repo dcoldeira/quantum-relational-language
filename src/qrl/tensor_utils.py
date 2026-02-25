@@ -9,6 +9,44 @@ from typing import List, Tuple, Optional
 from functools import reduce
 
 
+def _build_qubit_permutation_matrix(perm: List[int],
+                                    num_qubits: int,
+                                    qubit_dim: int = 2) -> np.ndarray:
+    """
+    Build the unitary matrix that permutes qubit ordering.
+
+    perm[i] = j means new qubit position i corresponds to old qubit j.
+
+    Args:
+        perm: Permutation list of length num_qubits
+        num_qubits: Total number of qubits
+        qubit_dim: Dimension of each qubit (default 2)
+
+    Returns:
+        Permutation matrix of shape (qubit_dim^n, qubit_dim^n)
+    """
+    dim = qubit_dim ** num_qubits
+    P = np.zeros((dim, dim), dtype=complex)
+    for col in range(dim):
+        # Decode col into qubit values, MSB = qubit 0
+        old_bits = []
+        tmp = col
+        for _ in range(num_qubits):
+            old_bits.append(tmp % qubit_dim)
+            tmp //= qubit_dim
+        old_bits = old_bits[::-1]
+
+        # Apply permutation: new qubit i takes value of old qubit perm[i]
+        new_bits = [old_bits[perm[i]] for i in range(num_qubits)]
+
+        # Encode new bits to row index
+        row = 0
+        for bit in new_bits:
+            row = row * qubit_dim + bit
+        P[row, col] = 1.0
+    return P
+
+
 def embed_operator_at_position(operator: np.ndarray,
                                position: int,
                                num_qubits: int,
@@ -84,33 +122,35 @@ def embed_operator_at_positions(operator: np.ndarray,
     if operator.shape != (expected_dim, expected_dim):
         raise ValueError(f"Operator dimension {operator.shape} doesn't match {len(positions)} qubits")
 
-    # For now, only implement adjacent qubits (general case is more complex)
-    # This handles most common cases
-    if positions != sorted(positions):
-        raise NotImplementedError("Non-adjacent qubit operators not yet implemented")
+    k = len(positions)
 
-    # Check if positions are contiguous
-    if positions != list(range(positions[0], positions[-1] + 1)):
-        raise NotImplementedError("Non-contiguous qubit operators not yet implemented")
+    # Fast path: contiguous positions in sorted order — simple Kronecker embedding
+    if positions == sorted(positions) and positions == list(range(positions[0], positions[-1] + 1)):
+        identity = np.eye(qubit_dim)
+        result = operator
+        for _ in range(positions[0]):
+            result = np.kron(identity, result)
+        for _ in range(num_qubits - positions[-1] - 1):
+            result = np.kron(result, identity)
+        return result
 
-    # Build: I^⊗a ⊗ operator ⊗ I^⊗b
-    # where a = first position, b = (num_qubits - last position - 1)
-    identity = np.eye(qubit_dim)
+    # General case: arbitrary (non-contiguous or non-sorted) positions.
+    # Strategy: build a permutation P that maps target qubits to positions 0..k-1,
+    # apply (operator ⊗ I_{n-k}) in the permuted space, then invert the permutation.
+    #
+    # perm[i] = old qubit index that appears at new position i.
+    # positions[0] → new index 0, positions[1] → new index 1, ..., rest in sorted order.
+    remaining = [i for i in range(num_qubits) if i not in positions]
+    perm = list(positions) + remaining
 
-    first_pos = positions[0]
-    last_pos = positions[-1]
+    P = _build_qubit_permutation_matrix(perm, num_qubits, qubit_dim)
 
-    result = operator
+    # In permuted space operator acts on first k qubits, identity on the rest
+    identity_rest = np.eye(qubit_dim ** (num_qubits - k))
+    full_op_permuted = np.kron(operator, identity_rest)
 
-    # Add identities before
-    for _ in range(first_pos):
-        result = np.kron(identity, result)
-
-    # Add identities after
-    for _ in range(num_qubits - last_pos - 1):
-        result = np.kron(result, identity)
-
-    return result
+    # Transform back: P^T (O ⊗ I) P  (P is unitary so P^{-1} = P^T)
+    return P.T @ full_op_permuted @ P
 
 
 def partial_trace(state: np.ndarray,
@@ -209,17 +249,14 @@ def schmidt_decomposition(state: np.ndarray,
     dim_A = qubit_dim ** len(partition_A)
     dim_B = qubit_dim ** len(partition_B)
 
-    # For simplicity, require partitions to be contiguous and in order
-    # General case requires permutation of indices
-    all_qubits = sorted(partition_A + partition_B)
-    if partition_A + partition_B != all_qubits:
-        # Need to permute state
-        # For now, raise error - implement permutation later if needed
-        if sorted(partition_A) + sorted(partition_B) != all_qubits:
-            raise NotImplementedError("Non-contiguous partitions not yet implemented")
+    # Permute qubit axes so that partition_A qubits come first, partition_B second.
+    # np.transpose(tensor, perm_order) moves old axis perm_order[i] to new axis i.
+    perm_order = sorted(partition_A) + sorted(partition_B)
+    state_tensor = state.reshape([qubit_dim] * num_qubits)
+    state_tensor = np.transpose(state_tensor, perm_order)
 
-    # Reshape state to matrix: dim_A × dim_B
-    state_matrix = state.reshape(dim_A, dim_B)
+    # Reshape to dim_A × dim_B for SVD
+    state_matrix = state_tensor.reshape(dim_A, dim_B)
 
     # Perform SVD
     U, S, Vh = np.linalg.svd(state_matrix, full_matrices=False)
