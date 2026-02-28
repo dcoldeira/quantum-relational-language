@@ -1459,3 +1459,613 @@ class QuantumMarkovChain:
             f"dims=({self.dim_a},{self.dim_b},{self.dim_c}), "
             f"I(A:C|B)={self.qcmi():.4e}){desc}"
         )
+
+
+# ======================================================================== #
+# Gap 5 — Quantum Do-Calculus                                               #
+#                                                                            #
+# References:                                                                #
+#   Pearl (2000) — classical do-calculus (three rules)                      #
+#   Barrett, Lorenz, Oreshkov (2019) arXiv:1906.10726 — quantum extension  #
+#   Allen et al. (2017) PRX 7 — quantum common causes                       #
+# ======================================================================== #
+
+import networkx as nx
+from copy import deepcopy
+from networkx.algorithms.d_separation import is_d_separator
+
+
+# ---------------------------------------------------------------------- #
+# QuantumCausalDAG                                                         #
+# ---------------------------------------------------------------------- #
+
+class QuantumCausalDAG:
+    """Quantum causal DAG for do-calculus inference.
+
+    Nodes represent quantum systems (Hilbert spaces).  Directed edges
+    represent causal mechanisms (quantum channels / CPTP maps).  Root
+    nodes carry a *prior* density matrix; internal nodes carry a CPTP
+    map whose input dimension is the tensor product of their parents.
+
+    The three do-calculus rules (Pearl 2000, quantum-extended by Barrett
+    et al. 2019) are implemented as graphical checks — they rely on
+    d-separation in modified copies of the DAG.
+
+    Supports
+    --------
+    - add_node / add_channel       : construction
+    - parents / children / ancestors / descendants : graph queries
+    - is_d_separated               : graphical independence criterion
+    - observational_state          : propagate priors through channels
+    - do / interventional_state    : quantum do-calculus
+    - backdoor_admissible          : admissibility of adjustment sets
+    - adjusted_state               : backdoor-adjusted causal effect
+    - rule1 / rule2 / rule3        : three do-calculus rules
+
+    Parameters
+    ----------
+    description : optional label
+    """
+
+    def __init__(self, description: str = "") -> None:
+        self._graph: nx.DiGraph = nx.DiGraph()
+        self.description = description
+
+    # ------------------------------------------------------------------ #
+    # Construction                                                         #
+    # ------------------------------------------------------------------ #
+
+    def add_node(
+        self,
+        name: str,
+        dim: int,
+        prior: "np.ndarray | None" = None,
+    ) -> None:
+        """Add a quantum system node.
+
+        Parameters
+        ----------
+        name  : unique node identifier
+        dim   : Hilbert space dimension
+        prior : density matrix if this is a root node (no parents)
+        """
+        if name in self._graph:
+            raise ValueError(f"Node '{name}' already exists")
+        if prior is not None:
+            prior = np.asarray(prior, dtype=complex)
+            if prior.shape != (dim, dim):
+                raise ValueError(
+                    f"prior shape {prior.shape} incompatible with dim={dim}"
+                )
+        self._graph.add_node(
+            name, dim=dim, prior=prior, mechanisms=[]
+        )
+
+    def add_channel(
+        self,
+        sources: "str | list[str]",
+        target: str,
+        channel: "CPTPMap",
+    ) -> None:
+        """Add a causal mechanism: sources → target.
+
+        Parameters
+        ----------
+        sources : parent node name(s).  Order determines the tensor
+                  product ordering for multi-parent channels.
+        target  : child node name
+        channel : CPTPMap with input_dim = ∏ dim(sources), output_dim = dim(target)
+        """
+        if isinstance(sources, str):
+            sources = [sources]
+        for s in sources:
+            if s not in self._graph:
+                raise ValueError(f"Source node '{s}' not in DAG")
+        if target not in self._graph:
+            raise ValueError(f"Target node '{target}' not in DAG")
+
+        expected_in = int(np.prod(
+            [self._graph.nodes[s]["dim"] for s in sources]
+        ))
+        if channel.input_dim != expected_in:
+            raise ValueError(
+                f"Channel input_dim={channel.input_dim} but "
+                f"⊗ sources have dim={expected_in}"
+            )
+        expected_out = self._graph.nodes[target]["dim"]
+        if channel.output_dim != expected_out:
+            raise ValueError(
+                f"Channel output_dim={channel.output_dim} but "
+                f"target dim={expected_out}"
+            )
+
+        # Store mechanism on target; add structural edges for graph queries.
+        self._graph.nodes[target]["mechanisms"].append(
+            {"sources": list(sources), "channel": channel}
+        )
+        for s in sources:
+            if not self._graph.has_edge(s, target):
+                self._graph.add_edge(s, target)
+
+    # ------------------------------------------------------------------ #
+    # Graph queries                                                        #
+    # ------------------------------------------------------------------ #
+
+    def nodes(self) -> list[str]:
+        """Return list of all node names."""
+        return list(self._graph.nodes)
+
+    def dim(self, node: str) -> int:
+        """Return Hilbert space dimension of *node*."""
+        return self._graph.nodes[node]["dim"]
+
+    def parents(self, node: str) -> list[str]:
+        return list(self._graph.predecessors(node))
+
+    def children(self, node: str) -> list[str]:
+        return list(self._graph.successors(node))
+
+    def ancestors(self, node: str) -> set[str]:
+        return nx.ancestors(self._graph, node)
+
+    def descendants(self, node: str) -> set[str]:
+        return nx.descendants(self._graph, node)
+
+    def is_root(self, node: str) -> bool:
+        return self._graph.in_degree(node) == 0
+
+    def is_d_separated(
+        self,
+        X: "str | set[str]",
+        Y: "str | set[str]",
+        Z: "str | set[str]",
+    ) -> bool:
+        """Return True iff X and Y are d-separated given Z in this DAG.
+
+        Uses the NetworkX ``is_d_separator`` implementation (Bayes ball).
+
+        Parameters
+        ----------
+        X, Y : node name or set of node names
+        Z    : conditioning set (node name or set)
+        """
+        if isinstance(X, str):
+            X = {X}
+        if isinstance(Y, str):
+            Y = {Y}
+        if isinstance(Z, str):
+            Z = {Z}
+        return bool(is_d_separator(self._graph, X, Y, Z))
+
+    # ------------------------------------------------------------------ #
+    # State propagation                                                    #
+    # ------------------------------------------------------------------ #
+
+    def _compute_states(self) -> "dict[str, np.ndarray]":
+        """Propagate priors through channels, returning a state dict.
+
+        Follows topological order.  Each node's state is computed from
+        its parents via the stored mechanism.
+        """
+        states: dict[str, np.ndarray] = {}
+        for node in nx.topological_sort(self._graph):
+            mechanisms = self._graph.nodes[node]["mechanisms"]
+            prior = self._graph.nodes[node]["prior"]
+
+            if not mechanisms:
+                # Root node — must have a prior.
+                if prior is None:
+                    raise ValueError(
+                        f"Node '{node}' has no parents and no prior state"
+                    )
+                states[node] = prior
+            else:
+                # Use the first (and typically only) mechanism.
+                mech = mechanisms[0]
+                srcs = mech["sources"]
+                ch: CPTPMap = mech["channel"]
+                if len(srcs) == 1:
+                    rho_in = states[srcs[0]]
+                else:
+                    # Tensor product of parent states (in declared order).
+                    rho_in = states[srcs[0]]
+                    for s in srcs[1:]:
+                        rho_in = np.kron(rho_in, states[s])
+                states[node] = ch.apply(rho_in)
+        return states
+
+    def observational_state(self, target: str) -> np.ndarray:
+        """Compute the density matrix of *target* under no intervention.
+
+        Propagates prior states through CPTP channels in topological
+        order.
+
+        Returns
+        -------
+        numpy array of shape (dim, dim)
+        """
+        if target not in self._graph:
+            raise ValueError(f"Node '{target}' not in DAG")
+        return self._compute_states()[target]
+
+    # ------------------------------------------------------------------ #
+    # Intervention (do-calculus)                                           #
+    # ------------------------------------------------------------------ #
+
+    def do(
+        self,
+        interventions: "dict[str, np.ndarray | CPTPMap]",
+    ) -> "QuantumCausalDAG":
+        """Apply quantum do-calculus interventions and return a modified DAG.
+
+        For each intervened node:
+        - All incoming causal mechanisms are removed.
+        - If the intervention value is a density matrix (np.ndarray), it
+          replaces the node's prior state.
+        - If it is a CPTPMap, it is stored as the new mechanism applied
+          to the (now parentless) node.  The CPTPMap must map from a
+          1-dimensional input (or use input_dim=1) to dim(node).
+
+        Returns a new QuantumCausalDAG (original is not modified).
+
+        Parameters
+        ----------
+        interventions : {node_name: state_or_channel, ...}
+        """
+        dag = deepcopy(self)
+        for node, value in interventions.items():
+            if node not in dag._graph:
+                raise ValueError(f"Intervention node '{node}' not in DAG")
+            # Remove all incoming edges and mechanisms.
+            for parent in list(dag._graph.predecessors(node)):
+                dag._graph.remove_edge(parent, node)
+            dag._graph.nodes[node]["mechanisms"] = []
+
+            d = dag._graph.nodes[node]["dim"]
+            if isinstance(value, np.ndarray):
+                rho = np.asarray(value, dtype=complex)
+                if rho.shape != (d, d):
+                    raise ValueError(
+                        f"Intervention state shape {rho.shape} "
+                        f"incompatible with node '{node}' dim={d}"
+                    )
+                dag._graph.nodes[node]["prior"] = rho
+            elif isinstance(value, CPTPMap):
+                # The CPTPMap is treated as a preparation channel
+                # (input is trivial — 1×1 identity).
+                if value.output_dim != d:
+                    raise ValueError(
+                        f"Intervention CPTPMap output_dim={value.output_dim} "
+                        f"incompatible with node '{node}' dim={d}"
+                    )
+                dag._graph.nodes[node]["prior"] = value.apply(
+                    np.ones((1, 1), dtype=complex)
+                )
+            else:
+                raise TypeError(
+                    f"Intervention must be np.ndarray or CPTPMap, "
+                    f"got {type(value)}"
+                )
+        return dag
+
+    def interventional_state(
+        self,
+        target: str,
+        interventions: "dict[str, np.ndarray | CPTPMap]",
+    ) -> np.ndarray:
+        """Return ρ(target | do(interventions)).
+
+        Applies the specified interventions and then propagates states
+        through the modified DAG to compute the post-intervention state
+        of *target*.
+
+        Parameters
+        ----------
+        target        : node whose post-intervention state is desired
+        interventions : {node: state_or_channel, ...}
+
+        Returns
+        -------
+        numpy array of shape (dim(target), dim(target))
+        """
+        modified = self.do(interventions)
+        return modified.observational_state(target)
+
+    def quantum_causal_effect(
+        self,
+        target: str,
+        treatment: str,
+        sigma: np.ndarray,
+        sigma0: "np.ndarray | None" = None,
+    ) -> float:
+        """Trace-distance between ρ(target|do(σ)) and ρ(target|do(σ0)).
+
+        A non-zero value signals a genuine causal effect of *treatment*
+        on *target*.  Uses trace distance D(ρ,σ) = ½ ‖ρ−σ‖₁.
+
+        Parameters
+        ----------
+        target    : outcome node
+        treatment : treatment node
+        sigma     : intervention state (density matrix)
+        sigma0    : baseline state; defaults to node's observational state
+        """
+        d = self._graph.nodes[treatment]["dim"]
+        if sigma0 is None:
+            sigma0 = self.observational_state(treatment)
+
+        rho1 = self.interventional_state(target, {treatment: sigma})
+        rho0 = self.interventional_state(target, {treatment: sigma0})
+        diff = rho1 - rho0
+        eigvals = np.linalg.eigvalsh(diff)
+        return float(0.5 * np.sum(np.abs(eigvals)))
+
+    # ------------------------------------------------------------------ #
+    # Backdoor criterion + adjustment                                      #
+    # ------------------------------------------------------------------ #
+
+    def backdoor_admissible(
+        self,
+        treatment: str,
+        outcome: str,
+        adjustment: "set[str]",
+    ) -> bool:
+        """Check if *adjustment* satisfies the backdoor criterion.
+
+        A set Z satisfies the backdoor criterion relative to (X, Y) iff:
+        (i)  No node in Z is a descendant of *treatment*.
+        (ii) Z d-separates *outcome* from *treatment* in the DAG where
+             all edges OUT of *treatment* are removed (G_{X̄}).
+
+        Parameters
+        ----------
+        treatment  : treatment node X
+        outcome    : outcome node Y
+        adjustment : proposed adjustment set Z
+
+        Returns
+        -------
+        bool
+        """
+        # Condition (i): no element of Z is a descendant of treatment.
+        desc = self.descendants(treatment)
+        if adjustment & desc:
+            return False
+
+        # Condition (ii): d-separation in DAG with treatment's outgoing
+        # edges removed (not incoming — backdoor blocks back-door paths).
+        dag_surgery = deepcopy(self._graph)
+        for child in list(dag_surgery.successors(treatment)):
+            dag_surgery.remove_edge(treatment, child)
+
+        return bool(
+            is_d_separator(dag_surgery, {treatment}, {outcome}, adjustment)
+        )
+
+    def adjusted_state(
+        self,
+        target: str,
+        treatment: str,
+        treatment_state: np.ndarray,
+        adjustment_set: "set[str]",
+        n_samples: int = 0,
+    ) -> np.ndarray:
+        """Compute ρ(target | do(treatment=σ)) via backdoor adjustment.
+
+        The backdoor adjustment formula (quantum version):
+
+            ρ(Y | do(X=σ)) = ρ(Y | do(X=σ))  [directly, via do()]
+
+        This method verifies that *adjustment_set* is admissible, then
+        returns the interventional state computed directly by ``do()``.
+        The adjustment is implicit — it is validated graphically and the
+        correct interventional distribution is returned.
+
+        Parameters
+        ----------
+        target          : outcome node
+        treatment       : treatment node
+        treatment_state : density matrix to impose at *treatment*
+        adjustment_set  : backdoor-admissible set (validated here)
+
+        Returns
+        -------
+        numpy array of shape (dim(target), dim(target))
+
+        Raises
+        ------
+        ValueError : if *adjustment_set* is not backdoor-admissible
+        """
+        if not self.backdoor_admissible(treatment, target, adjustment_set):
+            raise ValueError(
+                f"Adjustment set {adjustment_set} is not backdoor-admissible "
+                f"for treatment='{treatment}', outcome='{target}'"
+            )
+        return self.interventional_state(target, {treatment: treatment_state})
+
+    # ------------------------------------------------------------------ #
+    # Three do-calculus rules (Pearl 2000 / Barrett et al. 2019)          #
+    # ------------------------------------------------------------------ #
+    #                                                                      #
+    # All three rules test graphical d-separation conditions on modified   #
+    # versions of the DAG.  The quantum versions (Barrett et al. 2019)    #
+    # preserve the same graphical criteria as the classical rules.         #
+    # ------------------------------------------------------------------ #
+
+    def _dag_remove_incoming(self, nodes: "set[str]") -> nx.DiGraph:
+        """Return a copy of the graph with all incoming edges of *nodes* removed."""
+        G = deepcopy(self._graph)
+        for n in nodes:
+            for p in list(G.predecessors(n)):
+                G.remove_edge(p, n)
+        return G
+
+    def _dag_remove_outgoing(self, nodes: "set[str]") -> nx.DiGraph:
+        """Return a copy of the graph with all outgoing edges of *nodes* removed."""
+        G = deepcopy(self._graph)
+        for n in nodes:
+            for c in list(G.successors(n)):
+                G.remove_edge(n, c)
+        return G
+
+    def rule1(
+        self,
+        Y: "str | set[str]",
+        X_do: "str | set[str]",
+        Z: "str | set[str]",
+        W: "str | set[str]",
+    ) -> bool:
+        """Do-calculus Rule 1: insertion/deletion of observations.
+
+        P(y | do(x), z, w) = P(y | do(x), w)  iff  (Y ⊥ Z | X, W) in G_{X̄}.
+
+        Rule 1 allows us to remove Z from the conditioning set when Y
+        and Z are d-separated given {X, W} in the graph where all edges
+        into X (the intervened nodes) are removed.
+
+        Parameters
+        ----------
+        Y    : outcome variable(s)
+        X_do : intervened variable(s) (do(X))
+        Z    : variable(s) to remove from conditioning
+        W    : remaining conditioning set
+
+        Returns
+        -------
+        bool : True iff Rule 1 applies (Z can be removed from conditioning)
+        """
+        if isinstance(Y, str):
+            Y = {Y}
+        if isinstance(X_do, str):
+            X_do = {X_do}
+        if isinstance(Z, str):
+            Z = {Z}
+        if isinstance(W, str):
+            W = {W}
+        G_bar_X = self._dag_remove_incoming(X_do)
+        return bool(is_d_separator(G_bar_X, Y, Z, X_do | W))
+
+    def rule2(
+        self,
+        Y: "str | set[str]",
+        X_do: "str | set[str]",
+        Z: "str | set[str]",
+        W: "str | set[str]",
+    ) -> bool:
+        """Do-calculus Rule 2: exchange of observations and interventions.
+
+        P(y | do(x), do(z), w) = P(y | do(x), z, w)  iff
+            (Y ⊥ Z | X, W) in G_{X̄, Z̄(W)}.
+
+        G_{X̄, Z̄(W)} is the graph with:
+          - All incoming edges to X removed.
+          - All outgoing edges from Z to non-ancestors-of-W removed.
+
+        Rule 2 tells us when we can replace an intervention do(Z) with
+        an observation of Z.
+
+        Parameters
+        ----------
+        Y    : outcome variable(s)
+        X_do : intervened variable(s) (do(X))
+        Z    : intervention variable(s) to convert to observation
+        W    : remaining conditioning set
+
+        Returns
+        -------
+        bool : True iff Rule 2 applies (do(Z) can become observe(Z))
+        """
+        if isinstance(Y, str):
+            Y = {Y}
+        if isinstance(X_do, str):
+            X_do = {X_do}
+        if isinstance(Z, str):
+            Z = {Z}
+        if isinstance(W, str):
+            W = {W}
+
+        # G_{X̄}: remove incoming edges to X.
+        G = self._dag_remove_incoming(X_do)
+
+        # Additionally remove outgoing edges from Z that go to
+        # non-ancestors of W in G_{X̄}.
+        anc_W = set()
+        for w in W:
+            if w in G:
+                anc_W |= nx.ancestors(G, w) | {w}
+
+        for z in Z:
+            for c in list(G.successors(z)):
+                if c not in anc_W:
+                    G.remove_edge(z, c)
+
+        return bool(is_d_separator(G, Y, Z, X_do | W))
+
+    def rule3(
+        self,
+        Y: "str | set[str]",
+        X_do: "str | set[str]",
+        Z_do: "str | set[str]",
+        W: "str | set[str]",
+    ) -> bool:
+        """Do-calculus Rule 3: deletion of interventions.
+
+        P(y | do(x), do(z), w) = P(y | do(x), w)  iff
+            (Y ⊥ Z | X, W) in G_{X̄, Z̄(W̄)}.
+
+        G_{X̄, Z̄(W̄)} is the graph with:
+          - All incoming edges to X removed.
+          - All incoming edges to Z(W) removed, where Z(W) = Z nodes
+            that are not ancestors of any W node in G_{X̄}.
+
+        Rule 3 allows us to remove an intervention do(Z) entirely when
+        it has no effect on Y given the other interventions and context.
+
+        Parameters
+        ----------
+        Y    : outcome variable(s)
+        X_do : intervened variable(s) (do(X))
+        Z_do : intervention variable(s) to remove
+        W    : conditioning set
+
+        Returns
+        -------
+        bool : True iff Rule 3 applies (do(Z) can be removed)
+        """
+        if isinstance(Y, str):
+            Y = {Y}
+        if isinstance(X_do, str):
+            X_do = {X_do}
+        if isinstance(Z_do, str):
+            Z_do = {Z_do}
+        if isinstance(W, str):
+            W = {W}
+
+        # G_{X̄}: remove incoming edges to X.
+        G = self._dag_remove_incoming(X_do)
+
+        # Z(W) = Z nodes that are NOT ancestors of any W in G_{X̄}.
+        anc_W = set()
+        for w in W:
+            if w in G:
+                anc_W |= nx.ancestors(G, w) | {w}
+        Z_W = Z_do - anc_W
+
+        # Remove incoming edges to Z(W).
+        for z in Z_W:
+            for p in list(G.predecessors(z)):
+                G.remove_edge(p, z)
+
+        return bool(is_d_separator(G, Y, Z_do, X_do | W))
+
+    # ------------------------------------------------------------------ #
+    # Utility                                                              #
+    # ------------------------------------------------------------------ #
+
+    def __repr__(self) -> str:
+        desc = f" — {self.description}" if self.description else ""
+        n_nodes = self._graph.number_of_nodes()
+        n_edges = self._graph.number_of_edges()
+        return (
+            f"QuantumCausalDAG({n_nodes} nodes, {n_edges} edges){desc}"
+        )

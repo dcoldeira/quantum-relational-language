@@ -39,6 +39,7 @@ from .causal import (
     is_quantum_conditionally_independent,
     petz_recovery_map,
     QuantumMarkovChain,
+    QuantumCausalDAG,
 )
 
 __version__ = "0.2.0"
@@ -70,4 +71,5 @@ __all__ = [
     'is_quantum_conditionally_independent',
     'petz_recovery_map',
     'QuantumMarkovChain',
+    'QuantumCausalDAG',
 ]
