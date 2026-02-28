@@ -21,7 +21,7 @@ from .providers import OllamaProvider, TogetherAIProvider
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="QRL Quantum AI — ask quantum questions")
-    parser.add_argument("--model", default="deepseek-coder-v2:16b", help="Ollama model name")
+    parser.add_argument("--model", default="marco:latest", help="Ollama model name")
     parser.add_argument("--provider", choices=["ollama", "together"], default="ollama")
     parser.add_argument("--verbose", action="store_true", help="Show generated QRL code")
     args = parser.parse_args()

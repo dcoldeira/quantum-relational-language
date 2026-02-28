@@ -12,24 +12,39 @@ from .providers import LLMProvider, OllamaProvider
 _API_REF_PATH = Path(__file__).parent.parent / "docs" / "api-reference.md"
 _API_REFERENCE = _API_REF_PATH.read_text() if _API_REF_PATH.exists() else ""
 
-_CODE_GEN_SYSTEM = f"""You are a QRL (Quantum Relational Language) code generator.
+_CODE_GEN_SYSTEM = f"""You are a QRL code generator. Output ONLY executable Python code. No prose. No explanation. No markdown.
 
-Given a user question about a quantum system, write a Python code snippet that
-uses QRL to answer it. The code will be executed and the answer read from a
-variable called `result`.
+The code must assign its answer to a variable named `result`.
 
-Rules:
-- Only use QRL APIs listed in the reference below.
-- Assign the final numeric/boolean/string answer to `result`.
-- Do NOT print anything — only assign to `result`.
-- Keep the code minimal and correct.
-- If the question cannot be answered with available QRL APIs, set result = None
-  and add a comment explaining why.
-- Output ONLY the code — no explanation, no markdown fences.
+EXAMPLE INPUT: What is the entanglement fidelity of a 50km fiber link?
+EXAMPLE OUTPUT:
+net = QuantumNetwork("test")
+net.add_node("A").add_node("B")
+net.add_link("A", "B", fiber_channel(50))
+result = net.entanglement_fidelity("A", "B")
 
+EXAMPLE INPUT: Which link is the bottleneck in a chain A→B(100km)→C(10km)?
+EXAMPLE OUTPUT:
+net = QuantumNetwork("chain")
+net.add_node("A").add_node("B").add_node("C")
+net.add_link("A", "B", fiber_channel(100))
+net.add_link("B", "C", fiber_channel(10))
+result = net.bottleneck_link("C")
+
+EXAMPLE INPUT: Can Eve at the repeater intercept Alice and Bob?
+EXAMPLE OUTPUT:
+net = QuantumNetwork("secure")
+net.add_node("Alice").add_node("Repeater").add_node("Bob")
+net.add_link("Alice", "Repeater", ideal_channel())
+net.add_link("Repeater", "Bob", ideal_channel())
+result = not net.is_secure("Alice", "Bob", ["Repeater"])
+
+Available QRL APIs:
 === QRL API REFERENCE ===
 {_API_REFERENCE}
 === END REFERENCE ===
+
+Output ONLY Python code. Assign the final answer to `result`. Nothing else.
 """
 
 _EXPLAIN_SYSTEM = """You are a quantum computing assistant explaining results to a
@@ -57,7 +72,7 @@ class QuantumAILoop:
         code_provider: Optional[LLMProvider] = None,
         explain_provider: Optional[LLMProvider] = None,
     ) -> None:
-        self.code_provider = code_provider or OllamaProvider("deepseek-coder-v2:16b")
+        self.code_provider = code_provider or OllamaProvider("marco:latest")
         self.explain_provider = explain_provider or self.code_provider
 
     def ask(self, question: str, verbose: bool = False) -> str:

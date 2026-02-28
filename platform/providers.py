@@ -25,27 +25,31 @@ class OllamaProvider(LLMProvider):
     Models available: deepseek-coder-v2:16b, marco:latest
     """
 
-    model: str = "deepseek-coder-v2:16b"
+    model: str = "marco:latest"
     base_url: str = "http://localhost:11434"
     temperature: float = 0.1  # low temperature for deterministic code gen
     timeout: int = 120
 
     def generate(self, prompt: str, system: str = "") -> str:
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+
         payload = {
             "model": self.model,
-            "prompt": prompt,
-            "system": system,
+            "messages": messages,
             "stream": False,
             "options": {"temperature": self.temperature},
         }
         data = json.dumps(payload).encode()
         req = urllib.request.Request(
-            f"{self.base_url}/api/generate",
+            f"{self.base_url}/api/chat",
             data=data,
             headers={"Content-Type": "application/json"},
         )
         with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-            return json.loads(resp.read())["response"].strip()
+            return json.loads(resp.read())["message"]["content"].strip()
 
 
 @dataclass
