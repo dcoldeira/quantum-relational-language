@@ -68,6 +68,9 @@ def _build_namespace() -> dict:
         "float": float,
         "int": int,
         "bool": bool,
+        "complex": complex,
+        "tuple": tuple,
+        "range": range,
         # result placeholder
         "result": None,
     }
