@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import urllib.request
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -65,7 +66,6 @@ class TogetherAIProvider(LLMProvider):
     timeout: int = 60
 
     def __post_init__(self) -> None:
-        import os
         if not self.api_key:
             self.api_key = os.environ.get("TOGETHER_API_KEY", "")
         if not self.api_key:
@@ -95,3 +95,38 @@ class TogetherAIProvider(LLMProvider):
         with urllib.request.urlopen(req, timeout=self.timeout) as resp:
             body = json.loads(resp.read())
             return body["choices"][0]["message"]["content"].strip()
+
+
+@dataclass
+class ClaudeProvider(LLMProvider):
+    """Anthropic Claude provider — best for explanation and reasoning.
+
+    Uses claude-haiku-4-5 by default (~$0.25/M tokens, fast).
+    Set ANTHROPIC_API_KEY environment variable.
+
+    Recommended use: explanation step only (code gen stays local with Ollama).
+    """
+
+    model: str = "claude-haiku-4-5-20251001"
+    api_key: str = ""
+    max_tokens: int = 1024
+    temperature: float = 0.3
+
+    def __post_init__(self) -> None:
+        if not self.api_key:
+            self.api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+        if not self.api_key:
+            raise ValueError("ANTHROPIC_API_KEY not set")
+
+    def generate(self, prompt: str, system: str = "") -> str:
+        import anthropic
+        client = anthropic.Anthropic(api_key=self.api_key)
+        kwargs = {
+            "model": self.model,
+            "max_tokens": self.max_tokens,
+            "messages": [{"role": "user", "content": prompt}],
+        }
+        if system:
+            kwargs["system"] = system
+        msg = client.messages.create(**kwargs)
+        return msg.content[0].text.strip()

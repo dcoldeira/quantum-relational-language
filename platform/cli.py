@@ -16,22 +16,25 @@ import argparse
 import sys
 
 from .loop import QuantumAILoop
-from .providers import OllamaProvider, TogetherAIProvider
+from .providers import OllamaProvider, TogetherAIProvider, ClaudeProvider
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="QRL Quantum AI — ask quantum questions")
-    parser.add_argument("--model", default="marco:latest", help="Ollama model name")
+    parser.add_argument("--model", default="marco:latest", help="Ollama model for code gen")
     parser.add_argument("--provider", choices=["ollama", "together"], default="ollama")
+    parser.add_argument("--explain-claude", action="store_true",
+                        help="Use Claude (haiku) for explanation step (requires ANTHROPIC_API_KEY)")
     parser.add_argument("--verbose", action="store_true", help="Show generated QRL code")
     args = parser.parse_args()
 
     if args.provider == "together":
-        provider = TogetherAIProvider()
+        code_provider = TogetherAIProvider()
     else:
-        provider = OllamaProvider(model=args.model)
+        code_provider = OllamaProvider(model=args.model)
 
-    loop = QuantumAILoop(code_provider=provider)
+    explain_provider = ClaudeProvider() if args.explain_claude else code_provider
+    loop = QuantumAILoop(code_provider=code_provider, explain_provider=explain_provider)
 
     print("QRL Quantum AI")
     print(f"Model: {args.model} via {args.provider}")
