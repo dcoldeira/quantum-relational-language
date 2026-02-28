@@ -4,11 +4,17 @@ from __future__ import annotations
 
 from typing import Any
 
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .loop import QuantumAILoop
 from .templates import TEMPLATES
+
+_STATIC_DIR = Path(__file__).parent / "static"
 
 
 # ------------------------------------------------------------------ #
@@ -101,6 +107,14 @@ def create_app(loop: QuantumAILoop | None = None) -> FastAPI:
             value=r.value,
             ok=r.ok,
         )
+
+    # Serve static assets
+    if _STATIC_DIR.exists():
+        app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
+
+    @app.get("/", include_in_schema=False)
+    def index():
+        return FileResponse(_STATIC_DIR / "index.html")
 
     return app
 

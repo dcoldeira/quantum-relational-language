@@ -85,6 +85,21 @@ def _extract_code(raw: str) -> str:
     return raw.strip()
 
 
+def _strip_imports(code: str) -> str:
+    """Remove import statements from LLM-generated code.
+
+    All needed names are pre-loaded in the execution namespace, so import
+    statements are both unnecessary and broken (no __import__ in sandbox).
+    """
+    lines = []
+    for line in code.splitlines():
+        stripped = line.lstrip()
+        if stripped.startswith("import ") or stripped.startswith("from "):
+            continue
+        lines.append(line)
+    return "\n".join(lines)
+
+
 class ExecutionResult:
     def __init__(self, value: Any = None, error: str = "", code: str = "") -> None:
         self.value = value
@@ -111,7 +126,7 @@ def execute(raw_code: str) -> ExecutionResult:
     -------
     ExecutionResult with .value (the `result` variable) or .error
     """
-    code = _extract_code(raw_code)
+    code = _strip_imports(_extract_code(raw_code))
     ns = _build_namespace()
     try:
         exec(code, {"__builtins__": {}}, ns)  # no builtins except what we provide

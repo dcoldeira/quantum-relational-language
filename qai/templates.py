@@ -6,13 +6,13 @@ that can be run directly or used as a few-shot example for the LLM.
 
 Usage
 -----
-    from platform.templates import TEMPLATES, run_all
+    from qai.templates import TEMPLATES, run_all
 
     # Run all 5 and print results
     run_all(verbose=True)
 
     # Run a single template
-    from platform.templates import TEMPLATE_NETWORK_FIDELITY
+    from qai.templates import TEMPLATE_NETWORK_FIDELITY
     result = TEMPLATE_NETWORK_FIDELITY.run()
     print(result.answer)
 """

@@ -11,9 +11,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from platform.api import create_app
-from platform.executor import ExecutionResult
-from platform.templates import TEMPLATES
+from qai.api import create_app
+from qai.executor import ExecutionResult
+from qai.templates import TEMPLATES
 
 
 # ------------------------------------------------------------------ #
