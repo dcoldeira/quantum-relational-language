@@ -6,8 +6,44 @@ quantum computing patterns.
 """
 
 from dataclasses import dataclass, field
-from typing import List, Tuple, Callable, Optional
+from typing import List, Tuple, Callable, Optional, TYPE_CHECKING
 import numpy as np
+
+if TYPE_CHECKING:
+    from ..causal import ProcessMatrix
+
+
+def _apply_two_qubit_gate(
+    state: np.ndarray,
+    gate: np.ndarray,
+    q1: int,
+    q2: int,
+    n: int,
+) -> np.ndarray:
+    """
+    Apply a 2-qubit gate to qubits q1 and q2 of an n-qubit state vector.
+
+    Args:
+        state: State vector of length 2^n.
+        gate:  2-qubit gate matrix (4×4), rows/cols in {|00⟩,|01⟩,|10⟩,|11⟩}.
+        q1:    Index of the first qubit (0-based).
+        q2:    Index of the second qubit (0-based, q2 > q1).
+        n:     Total number of qubits.
+
+    Returns:
+        Updated state vector of length 2^n.
+    """
+    psi = state.reshape([2] * n)
+    G = gate.reshape(2, 2, 2, 2)  # G[out1, out2, in1, in2]
+
+    in_idx = list(range(n))
+    out_q1 = n
+    out_q2 = n + 1
+    gate_idx = [out_q1, out_q2, q1, q2]
+    out_idx = [out_q1 if i == q1 else (out_q2 if i == q2 else i) for i in range(n)]
+
+    result = np.einsum(psi, in_idx, G, gate_idx, out_idx)
+    return result.reshape(2 ** n)
 
 
 @dataclass
@@ -161,6 +197,63 @@ class MeasurementPattern:
         
         return order
     
+    def process_matrix(self) -> 'ProcessMatrix':
+        """
+        Compute the process matrix for this MBQC pattern (Morimae 2014).
+
+        Builds the graph state |G⟩ from the pattern's preparation and
+        entanglement steps, then returns:
+
+            W = 2^n |G⟩⟨G|
+
+        where n = len(preparation).  This is the Morimae (2014) resource
+        state for the MBQC computation, scaled so that:
+
+            Tr[W] = 2^n = ∏_k d_{k_O}
+
+        Each qubit is modelled as a party with d_in = 1 (all qubits prepared
+        internally — no external quantum input) and d_out = 2.  Current QRL
+        programs enforce gflow, which places them in the causally separable
+        corner of process matrix theory.
+
+        References:
+            Morimae (2014). Acausal measurement-based quantum computing.
+            Physical Review A, 90, 010101(R).
+
+        Returns:
+            ProcessMatrix representing the MBQC graph state resource.
+        """
+        from ..causal import ProcessMatrix
+
+        n = len(self.preparation)
+
+        # Build graph state: start with |+⟩^⊗n
+        plus = np.array([1.0, 1.0]) / np.sqrt(2)
+        state = plus.copy()
+        for _ in range(n - 1):
+            state = np.kron(state, plus)
+
+        # Apply CZ gates for each entanglement edge.
+        # CZ = diag(1, 1, 1, -1) in the {|00⟩, |01⟩, |10⟩, |11⟩} basis.
+        CZ = np.diag([1.0, 1.0, 1.0, -1.0])
+        for q1, q2 in self.entanglement:
+            state = _apply_two_qubit_gate(state, CZ, q1, q2, n)
+
+        # Morimae: W = 2^n |G⟩⟨G|
+        W = float(2 ** n) * np.outer(state, state.conj())
+
+        # Parties: one per qubit in preparation order.
+        # d_in = 1 (no external input), d_out = 2 (qubit output).
+        parties = [f"Q{q}" for q in self.preparation]
+
+        return ProcessMatrix(
+            W=W,
+            parties=parties,
+            input_dims=[1] * n,
+            output_dims=[2] * n,
+            description=f"MBQC graph state resource (Morimae 2014): {self.description}",
+        )
+
     def __str__(self) -> str:
         """Human-readable representation of the pattern."""
         lines = []

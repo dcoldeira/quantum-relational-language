@@ -10,7 +10,7 @@ dcoldeira@gmail.com
 
 ## Abstract
 
-Quantum programming languages model computation as sequences of operations on quantum states. We observe that this design choice conflicts with a foundational result in quantum causal model theory: the correct causal explanation of entangled correlations is not a sequence of gate operations but a *quantum common cause* — an entangled resource distributed to correlated parties (Allen et al., 2017). The Quantum Relational Language (QRL) was designed independently from this theoretical tradition, yet its core abstraction — a first-class `QuantumRelation` object declared rather than derived — is structurally identical to a quantum common cause node. We identify three technically supportable correspondences between QRL's architecture and quantum causal model theory, most notably that every QRL measurement pattern implicitly defines a process matrix via the result of Miyazaki et al. (2014). We state five gaps that separate QRL's current implementation from a full quantum causal programming language and argue that filling these gaps constitutes a well-defined research programme. We discuss implications for AI systems that reason causally about quantum physical processes.
+Quantum programming languages model computation as sequences of operations on quantum states. We observe that this design choice conflicts with a foundational result in quantum causal model theory: the correct causal explanation of entangled correlations is not a sequence of gate operations but a *quantum common cause* — an entangled resource distributed to correlated parties (Allen et al., 2017). The Quantum Relational Language (QRL) was designed independently from this theoretical tradition, yet its core abstraction — a first-class `QuantumRelation` object declared rather than derived — is structurally identical to a quantum common cause node. We identify three technically supportable correspondences between QRL's architecture and quantum causal model theory, most notably that every QRL measurement pattern implicitly defines a process matrix via the result of Morimae (2014). We state five gaps that separate QRL's current implementation from a full quantum causal programming language and argue that filling these gaps constitutes a well-defined research programme. We discuss implications for AI systems that reason causally about quantum physical processes.
 
 ---
 
@@ -75,11 +75,11 @@ The difference is not cosmetic. In Qiskit, the Bell state is the output of a cir
 
 ### 3.2 `MeasurementPattern` and the Process Matrix Framework
 
-Miyazaki, Hajdušek and Murao (2014) study *acausal* MBQC — computation without causal ordering constraints on measurement angles — and establish that its resource process matrix is $W = 2^{N+n}|G'\rangle\langle G'| \otimes (I/2)^{\otimes n}$, where $|G'\rangle$ is the decorated graph state derived from the standard MBQC graph $G$. This process matrix violates causal inequalities ($P_0 = 1$ vs. the causal bound) and belongs to a signalling class.
+Morimae (2014) studies *acausal* MBQC — computation without causal ordering constraints on measurement angles — and establishes that its resource process matrix is $W = 2^{N+n}|G'\rangle\langle G'| \otimes (I/2)^{\otimes n}$, where $|G'\rangle$ is the decorated graph state derived from the standard MBQC graph $G$. This process matrix violates causal inequalities ($P_0 = 1$ vs. the causal bound) and belongs to a signalling class.
 
 This result locates QRL precisely within the process matrix framework. QRL enforces gflow — the condition for deterministic causal MBQC — which is exactly the condition for causal *separability*: the resulting process matrix admits a convex decomposition into definite-order processes. Current QRL programs therefore occupy the causally separable corner of process matrix theory. The `depends_on` fields of the `Measurement` objects define the causal DAG; the graph state $|G\rangle$ encodes the entanglement structure; together they determine a valid causally separable process matrix.
 
-Miyazaki's result is directly relevant to Gap 3: removing the gflow constraint — implementing causally indefinite computation — is precisely what promotes a QRL program from a causally separable process matrix to the full acausal resource $W(G')$. The research programme of Section 5 is thus the path from the causally separable corner to the complete process matrix framework.
+Morimae's result is directly relevant to Gap 3: removing the gflow constraint — implementing causally indefinite computation — is precisely what promotes a QRL program from a causally separable process matrix to the full acausal resource $W(G')$. The research programme of Section 5 is thus the path from the causally separable corner to the complete process matrix framework.
 
 ### 3.3 `ask()` as Quantum Intervention
 
@@ -113,7 +113,7 @@ The correspondences above are architectural. They become formal theorems only on
 
 The gaps above define a concrete research programme. We outline it in three phases.
 
-**Phase 1 — Formal Semantics (theoretical).** Define a denotational semantics for QRL programs as objects in $\mathbf{Caus}[\mathbf{C}]$ (Kissinger and Uijlen, 2017). Prove that the three correspondences of Section 3 are instances of this semantics: that `QuantumRelation` objects denote quantum common cause morphisms, that `MeasurementPattern` objects denote process matrices (recovering the Miyazaki result), and that `ask()` denotes a restricted quantum intervention. This phase is purely theoretical and constitutes a publishable result independent of implementation.
+**Phase 1 — Formal Semantics (theoretical).** Define a denotational semantics for QRL programs as objects in $\mathbf{Caus}[\mathbf{C}]$ (Kissinger and Uijlen, 2017). Prove that the three correspondences of Section 3 are instances of this semantics: that `QuantumRelation` objects denote quantum common cause morphisms, that `MeasurementPattern` objects denote process matrices (recovering the Morimae result), and that `ask()` denotes a restricted quantum intervention. This phase is purely theoretical and constitutes a publishable result independent of implementation.
 
 **Phase 2 — Core Implementation (language extension).** Implement Gaps 1–3:
 - `ProcessMatrix(W, parties, input_dims, output_dims)` — a first-class type with validity checking (the linear constraints on valid process matrices) and causal inequality testing
@@ -151,7 +151,7 @@ We have identified three technically supportable correspondences between the Qua
 
 1. QRL's `QuantumRelation` is architecturally identical to a quantum common cause node (Allen et al., 2017): entanglement is declared as a primitive causal relation, not derived from gate sequences.
 
-2. Every QRL `MeasurementPattern` implicitly defines a process matrix via the Miyazaki et al. (2014) correspondence: MBQC patterns and process matrices are in bijection, with the pattern's causal flow corresponding exactly to the process matrix's causal DAG.
+2. Every QRL `MeasurementPattern` implicitly defines a process matrix via the Morimae (2014) correspondence: MBQC patterns and process matrices are in bijection, with the pattern's causal flow corresponding exactly to the process matrix's causal DAG.
 
 3. QRL's `ask()` operation is a measurement-type quantum intervention, and the gflow condition enforced by the MBQC compiler is precisely the condition for causal separability of the resulting process.
 
@@ -169,7 +169,7 @@ Five gaps (no `ProcessMatrix` type, measurement-only interventions, no causally 
 - Chiribella, G., D'Ariano, G. M., and Perinotti, P. (2009). Theoretical framework for quantum networks. *Physical Review A*, 80, 022339.
 - Coldeira, D. (2026). From correlations to photons: Relational quantum programming. *Proceedings of QPL 2026* (submitted). arXiv:2501.XXXXX.
 - Kissinger, A. and Uijlen, S. (2019). A categorical semantics for causal structure. *Logical Methods in Computer Science*, 15(3).
-- Miyazaki, J., Hajdušek, M., and Murao, M. (2014). Acausal measurement-based quantum computing. *Physical Review A*, 90, 010101(R).
+- Morimae, T. (2014). Acausal measurement-based quantum computing. *Physical Review A*, 90, 010101(R).
 - Oreshkov, O., Costa, F., and Brukner, Č. (2012). Quantum correlations with no causal order. *Nature Communications*, 3, 1092.
 - Raussendorf, R. and Briegel, H. J. (2001). A one-way quantum computer. *Physical Review Letters*, 86, 5188.
 - Wood, C. J. and Spekkens, R. W. (2012). The lesson of causal discovery algorithms for quantum correlations. *arXiv:1208.4119*.

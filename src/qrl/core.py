@@ -442,6 +442,72 @@ class QRLProgram:
 
         return global_state
 
+    def intervene(
+        self,
+        relation: 'QuantumRelation',
+        cptp_map: Any,
+        subsystem: Optional[int] = None,
+    ) -> 'QuantumRelation':
+        """
+        Apply a CPTP intervention to a quantum relation.
+
+        This is the quantum generalisation of Pearl's do(X := channel)
+        operation: the mechanism at the specified node is replaced by
+        `cptp_map`, cutting all incoming causal edges to the intervened
+        subsystem.
+
+        Unlike ask(), which post-selects on a single measurement outcome,
+        intervene() applies the full channel (summing over all Kraus
+        operators) — the marginal, non-selective intervention.
+
+        For projective measurements, use projective_measurement_channel()
+        to obtain a CPTPMap, then pass it here to apply the full
+        dephasing channel without recording an outcome.
+
+        Args:
+            relation:  The QuantumRelation to intervene on.
+            cptp_map:  A CPTPMap to apply.
+            subsystem: Qubit index to intervene on (0-based).
+                       If None, the full CPTP map is applied to the
+                       entire relation state.
+
+        Returns:
+            The updated QuantumRelation (state replaced in-place).
+
+        Raises:
+            ValueError:          If subsystem is out of range.
+            NotImplementedError: If subsystem is given but cptp_map is
+                                 not a single-qubit map.
+        """
+        n_qubits = len(relation.systems)
+
+        if subsystem is not None:
+            if not (0 <= subsystem < n_qubits):
+                raise ValueError(
+                    f"subsystem {subsystem} out of range for relation "
+                    f"with {n_qubits} qubits"
+                )
+            new_state = cptp_map.apply_to_subsystem(
+                relation.state, subsystem, n_qubits
+            )
+        else:
+            new_state = cptp_map.apply(relation.state)
+
+        relation.state = new_state
+        # Entanglement entropy of a density matrix: simplified (set to 0 for now;
+        # von Neumann entropy of mixed states is handled in future gap work).
+        relation.entanglement_entropy = 0.0
+
+        self.history.append({
+            'type': 'intervention',
+            'relation_id': id(relation),
+            'subsystem': subsystem,
+            'cptp': repr(cptp_map),
+            'time': time.time(),
+        })
+
+        return relation
+
     def compile(self, target: str = "qiskit", **kwargs):
         """Compile the program to a target quantum framework"""
         from .compiler import get_compiler
@@ -496,6 +562,25 @@ def ask(program: QRLProgram, relation: QuantumRelation,
 def superposition(program: QRLProgram, branches: List[Callable], **kwargs):
     """Convenience function for superposition execution"""
     return program.superposition(branches, **kwargs)
+
+def intervene(program: QRLProgram, relation: QuantumRelation,
+              cptp_map: Any, **kwargs) -> QuantumRelation:
+    """
+    Convenience function for quantum interventions.
+
+    Applies a CPTP map to a relation — the quantum generalisation of
+    Pearl's do(X := channel).
+
+    Args:
+        program:   QRL program.
+        relation:  QuantumRelation to intervene on.
+        cptp_map:  A CPTPMap to apply.
+        **kwargs:  Additional arguments (subsystem=int for single-qubit maps).
+
+    Returns:
+        Updated QuantumRelation.
+    """
+    return program.intervene(relation, cptp_map, **kwargs)
 
 def create_question(question_type: QuestionType, subsystem: Optional[int] = None, **kwargs) -> QuantumQuestion:
     """

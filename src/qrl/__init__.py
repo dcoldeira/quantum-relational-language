@@ -19,7 +19,19 @@ from .core import (
     entangle,
     ask,
     superposition,
+    intervene,
     create_question,
+)
+from .causal import (
+    ProcessMatrix,
+    identity_process,
+    from_unitary,
+    CPTPMap,
+    cptp_from_unitary,
+    depolarizing_channel,
+    dephasing_channel,
+    amplitude_damping_channel,
+    projective_measurement_channel,
 )
 
 __version__ = "0.2.0"
@@ -33,5 +45,15 @@ __all__ = [
     'entangle',
     'ask',
     'superposition',
+    'intervene',
     'create_question',
+    'ProcessMatrix',
+    'identity_process',
+    'from_unitary',
+    'CPTPMap',
+    'cptp_from_unitary',
+    'depolarizing_channel',
+    'dephasing_channel',
+    'amplitude_damping_channel',
+    'projective_measurement_channel',
 ]
