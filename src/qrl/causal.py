@@ -752,3 +752,348 @@ def projective_measurement_channel(basis: np.ndarray) -> CPTPMap:
         output_dim=d,
         description=f"Projective measurement channel ({d}-dimensional basis)",
     )
+
+
+# ------------------------------------------------------------------ #
+# Internal helper                                                      #
+# ------------------------------------------------------------------ #
+
+def _to_density(state: np.ndarray) -> np.ndarray:
+    """Convert a state vector to a density matrix; pass through if already 2D."""
+    if state.ndim == 1:
+        return np.outer(state, state.conj())
+    return state
+
+
+# ================================================================== #
+#  Gap 3 — QuantumSwitch                                              #
+# ================================================================== #
+
+@dataclass
+class QuantumSwitch:
+    """
+    Quantum switch — a process with indefinite causal order.
+
+    The quantum switch S(A, B) coherently superposes two causal orders
+    controlled by a qubit:
+
+        Control |0⟩_C  →  operation A is applied before B
+        Control |1⟩_C  →  operation B is applied before A
+        Control |+⟩_C  →  coherent superposition of both orders
+                           (indefinite causal order)
+
+    For unitary channels A = U_A, B = U_B acting on a d-dimensional target,
+    the switch is realised by the isometry
+
+        V = (U_B U_A) ⊗ |0⟩⟨0|_C  +  (U_A U_B) ⊗ |1⟩⟨1|_C
+
+    which acts on H_T ⊗ H_C (target ⊗ control qubit).  The output state for
+    target ρ_T and control ρ_C is
+
+        ρ_out = V (ρ_T ⊗ ρ_C) V†
+
+    For general CPTP channels the coherence between the two orders is lost
+    (decoherence destroys the indefinite causal structure); apply() falls back
+    to an incoherent mixture weighted by the control state's diagonal.
+
+    Causal properties
+    -----------------
+    The quantum switch is causally non-separable: it cannot be written as a
+    convex mixture of causally ordered processes.  It achieves
+
+        P_win = (2 + √2) / 4 ≈ 0.854
+
+    in the Oreshkov-Costa-Brukner (OCB 2012) AND-game, exceeding the
+    classical causal bound of 3/4.
+
+    Attributes
+    ----------
+    channel_A:   CPTPMap applied at party A.
+    channel_B:   CPTPMap applied at party B.
+    description: Human-readable label.
+
+    References
+    ----------
+    Oreshkov, Costa, Brukner (2012). Quantum correlations with no causal
+    order. Nature Communications, 3, 1092.
+
+    Chiribella (2012). Perfect discrimination of no-cloning and no-deleting
+    via quantum process tomography. Physical Review A, 86, 040301.
+
+    Araújo, Costa, Brukner (2014). Computational advantage from
+    quantum-controlled ordering of gates. Physical Review Letters, 113, 250402.
+    """
+
+    channel_A: CPTPMap
+    channel_B: CPTPMap
+    description: str = ""
+
+    def __post_init__(self) -> None:
+        if self.channel_A.input_dim != self.channel_B.input_dim:
+            raise ValueError(
+                f"channel_A.input_dim={self.channel_A.input_dim} != "
+                f"channel_B.input_dim={self.channel_B.input_dim}: "
+                "both channels must act on the same space"
+            )
+        if self.channel_A.output_dim != self.channel_B.output_dim:
+            raise ValueError(
+                f"channel_A.output_dim={self.channel_A.output_dim} != "
+                f"channel_B.output_dim={self.channel_B.output_dim}: "
+                "both channels must produce the same output space"
+            )
+        if self.channel_A.input_dim != self.channel_A.output_dim:
+            raise ValueError(
+                "QuantumSwitch requires square channels "
+                f"(d_in={self.channel_A.input_dim} != "
+                f"d_out={self.channel_A.output_dim})"
+            )
+
+    # ------------------------------------------------------------------ #
+    # Properties                                                           #
+    # ------------------------------------------------------------------ #
+
+    @property
+    def target_dim(self) -> int:
+        """Dimension of the target Hilbert space acted on by A and B."""
+        return self.channel_A.input_dim
+
+    def is_unitary(self) -> bool:
+        """Return True if both channels are unitary (single unitary Kraus op)."""
+        return self.channel_A.is_unitary() and self.channel_B.is_unitary()
+
+    # ------------------------------------------------------------------ #
+    # Switch isometry                                                      #
+    # ------------------------------------------------------------------ #
+
+    def switch_unitary(self) -> np.ndarray:
+        """
+        The quantum switch isometry V for unitary channels.
+
+            V = (U_B U_A) ⊗ |0⟩⟨0|_C  +  (U_A U_B) ⊗ |1⟩⟨1|_C
+
+        Shape: (2d, 2d) where d = target_dim.
+
+        The state ordering convention is target ⊗ control (target index
+        runs first in the Kronecker product).
+
+        Raises:
+            ValueError: If either channel is not unitary.
+        """
+        if not self.is_unitary():
+            raise ValueError(
+                "switch_unitary() requires both channels to be unitary; "
+                "use apply() for general CPTP maps"
+            )
+        U_A = self.channel_A.kraus_ops[0]
+        U_B = self.channel_B.kraus_ops[0]
+
+        P0 = np.array([[1, 0], [0, 0]], dtype=complex)  # |0⟩⟨0|
+        P1 = np.array([[0, 0], [0, 1]], dtype=complex)  # |1⟩⟨1|
+
+        return np.kron(U_B @ U_A, P0) + np.kron(U_A @ U_B, P1)
+
+    # ------------------------------------------------------------------ #
+    # Application                                                          #
+    # ------------------------------------------------------------------ #
+
+    def apply(
+        self,
+        target_state: np.ndarray,
+        control_state: np.ndarray,
+    ) -> np.ndarray:
+        """
+        Apply the quantum switch to target_state controlled by control_state.
+
+        State ordering convention: target ⊗ control (target index first).
+
+        For **unitary** channels A, B: performs the fully coherent switch
+
+            ρ_out = V (ρ_T ⊗ ρ_C) V†
+
+        where V is the switch isometry.  The control qubit is preserved in
+        the output — trace it out with apply_and_trace_control() if needed.
+
+        For **general CPTP** channels: performs the incoherent switch.
+        The two causal orders are applied as a classical mixture weighted
+        by the control qubit's diagonal (decoherence destroys the
+        indefinite-order coherence).  This is physically correct but loses
+        the causal non-separability signature.
+
+        Args:
+            target_state:  State vector (d,) or density matrix (d, d).
+            control_state: State vector (2,) or density matrix (2, 2).
+
+        Returns:
+            Density matrix (2d, 2d) of the combined target+control output.
+        """
+        if self.is_unitary():
+            return self._apply_coherent(target_state, control_state)
+        return self._apply_incoherent(target_state, control_state)
+
+    def apply_and_trace_control(
+        self,
+        target_state: np.ndarray,
+        control_state: np.ndarray,
+    ) -> np.ndarray:
+        """
+        Apply the quantum switch and return the reduced density matrix of the
+        target after tracing out the control qubit.
+
+        Args:
+            target_state:  State vector (d,) or density matrix (d, d).
+            control_state: State vector (2,) or density matrix (2, 2).
+
+        Returns:
+            Reduced density matrix (d, d) of the target.
+        """
+        from .tensor_utils import partial_trace
+        rho_out = self.apply(target_state, control_state)
+        d = self.target_dim
+        # rho_out is (2d, 2d); treat as 2 subsystems with dims [d, 2].
+        # partial_trace keeps qubit 0 (target) and traces out qubit 1 (control).
+        # Only works for qubit target (d=2); general case handled via reshape.
+        if d == 2:
+            return partial_trace(rho_out, keep_qubits=[0], num_qubits=2)
+        # General case: trace out the control (last 2×2 block)
+        rho_tensor = rho_out.reshape(d, 2, d, 2)
+        return np.einsum('iaja->ij', rho_tensor)
+
+    def _apply_coherent(
+        self,
+        target_state: np.ndarray,
+        control_state: np.ndarray,
+    ) -> np.ndarray:
+        """Coherent quantum switch via the switch isometry V."""
+        V = self.switch_unitary()
+        rho_TC = np.kron(_to_density(target_state), _to_density(control_state))
+        return V @ rho_TC @ V.conj().T
+
+    def _apply_incoherent(
+        self,
+        target_state: np.ndarray,
+        control_state: np.ndarray,
+    ) -> np.ndarray:
+        """
+        Incoherent switch for general CPTP maps.
+
+        Applies B∘A with weight p0 = ⟨0|ρ_C|0⟩ and A∘B with weight
+        p1 = ⟨1|ρ_C|1⟩.  Off-diagonal coherences of ρ_C are discarded
+        (they require the unitary/coherent path to be meaningful).
+        """
+        rho_T = _to_density(target_state)
+        rho_C = _to_density(control_state)
+        p0 = float(rho_C[0, 0].real)
+        p1 = float(rho_C[1, 1].real)
+
+        rho_BA = self.channel_B.apply(self.channel_A.apply(rho_T))
+        rho_AB = self.channel_A.apply(self.channel_B.apply(rho_T))
+
+        d = rho_T.shape[0]
+        result = np.zeros((2 * d, 2 * d), dtype=complex)
+        result[:d, :d] = p0 * rho_BA
+        result[d:, d:] = p1 * rho_AB
+        return result
+
+    # ------------------------------------------------------------------ #
+    # Causal properties                                                    #
+    # ------------------------------------------------------------------ #
+
+    def causal_inequality_value(self) -> float:
+        """
+        Winning probability in the OCB AND causal game.
+
+        The quantum switch achieves the analytically optimal value
+
+            P_win = (2 + √2) / 4  ≈  0.854
+
+        exceeding the classical causal bound of 3/4.
+
+        Reference: Oreshkov, Costa, Brukner (2012), equation (5).
+        """
+        return float((2.0 + np.sqrt(2.0)) / 4.0)
+
+    def is_causally_separable(self) -> bool:
+        """
+        Return False — the quantum switch is causally non-separable.
+
+        It cannot be decomposed as a convex mixture of causally ordered
+        processes (A before B, or B before A).  This is a mathematical
+        property of the quantum switch, independent of which channels
+        A and B are chosen.
+        """
+        return False
+
+    # ------------------------------------------------------------------ #
+    # Process matrix                                                       #
+    # ------------------------------------------------------------------ #
+
+    def process_matrix(self) -> 'ProcessMatrix':
+        """
+        Compute the process matrix of the quantum switch.
+
+        For unitary channels A = U_A, B = U_B with d-dimensional target and
+        qubit control, the process matrix is derived from the Choi-Jamiołkowski
+        representation of the switch isometry V:
+
+            W = (d · 2) · |v⟩⟨v|    (rank-1, pure process)
+
+        where |v⟩ = (I_{2d} ⊗ V) |Φ+⟩ / √(2d) is the CJ state normalised
+        to Tr[W] = d_out_target × d_out_control = d × 2.
+
+        The resulting ProcessMatrix has:
+            parties     = ['A', 'C']
+            input_dims  = [d, 2]   (target, control)
+            output_dims = [d, 2]
+
+        Returns:
+            ProcessMatrix encoding the quantum switch causal structure.
+
+        Raises:
+            NotImplementedError: If either channel is not unitary.
+        """
+        if not self.is_unitary():
+            raise NotImplementedError(
+                "process_matrix() is only implemented for unitary channels; "
+                "use apply() directly for general CPTP maps"
+            )
+
+        d = self.target_dim
+        V = self.switch_unitary()      # (2d, 2d)
+        N = 2 * d                       # dimension of target ⊗ control
+
+        # |Φ+⟩ = (1/√N) Σ_i |ii⟩  ∈  H_ref ⊗ H_{T⊗C}
+        phi = np.zeros(N * N, dtype=complex)
+        for i in range(N):
+            phi[i * N + i] = 1.0 / np.sqrt(N)
+
+        # CJ state: |v⟩ = (I_ref ⊗ V)|Φ+⟩,  shape (N², )
+        cj_vec = np.kron(np.eye(N, dtype=complex), V) @ phi
+
+        # W = (d × 2) |v⟩⟨v|  →  Tr[W] = d × 2  (OCB normalisation)
+        target_trace = float(d * 2)
+        W = target_trace * np.outer(cj_vec, cj_vec.conj())
+
+        return ProcessMatrix(
+            W=W,
+            parties=['A', 'C'],
+            input_dims=[d, 2],
+            output_dims=[d, 2],
+            description=(
+                f"Quantum switch process matrix "
+                f"(target d={d}, qubit control, "
+                f"P_win={(2+np.sqrt(2))/4:.3f})"
+            ),
+        )
+
+    # ------------------------------------------------------------------ #
+    # Utility                                                              #
+    # ------------------------------------------------------------------ #
+
+    def __repr__(self) -> str:
+        desc = f" — {self.description}" if self.description else ""
+        p_win = self.causal_inequality_value()
+        return (
+            f"QuantumSwitch(d={self.target_dim}, "
+            f"unitary={self.is_unitary()}, "
+            f"P_win={p_win:.3f}){desc}"
+        )

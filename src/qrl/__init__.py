@@ -32,6 +32,7 @@ from .causal import (
     dephasing_channel,
     amplitude_damping_channel,
     projective_measurement_channel,
+    QuantumSwitch,
 )
 
 __version__ = "0.2.0"
@@ -56,4 +57,5 @@ __all__ = [
     'dephasing_channel',
     'amplitude_damping_channel',
     'projective_measurement_channel',
+    'QuantumSwitch',
 ]
