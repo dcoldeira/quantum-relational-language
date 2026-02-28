@@ -26,7 +26,7 @@ class OllamaProvider(LLMProvider):
     Models available: deepseek-coder-v2:16b, marco:latest
     """
 
-    model: str = "marco:latest"
+    model: str = "deepseek-coder-v2:16b"
     base_url: str = "http://localhost:11434"
     temperature: float = 0.1  # low temperature for deterministic code gen
     timeout: int = 120

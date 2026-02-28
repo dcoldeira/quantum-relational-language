@@ -189,13 +189,13 @@ result = {
 # ------------------------------------------------------------------ #
 
 TEMPLATE_SECURITY = ProblemTemplate(
-    name="Quantum Channel Security",
+    name="Channel Security (example)",
     domain="quantum security",
-    question="Is our quantum network secure? Can an eavesdropper at the relay intercept our communication?",
+    question="In a 3-node network Alice → Relay → Bob, can an eavesdropper sitting at the relay intercept the Alice-Bob channel?",
     description=(
-        "Uses d-separation on the causal DAG to determine whether Eve's position "
-        "gives her access to the Alice-Bob channel. Also shows what happens if Eve "
-        "is off the causal path."
+        "Generic example: uses d-separation on the causal DAG to determine whether "
+        "a node on the path can intercept. Replace Alice/Relay/Bob with your own "
+        "nodes and link distances to model a real network."
     ),
     qrl_code="""\
 net = QuantumNetwork("secure-net")

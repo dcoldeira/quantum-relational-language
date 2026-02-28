@@ -1,0 +1,9 @@
+# QRL Photonic backends — Quandela/Perceval and graphix
+# Install with: pip install -r requirements-photonic.txt
+#
+# These are optional — the platform runs without them.
+# Required only for hardware_bell_test() and the perceval_path_adapter.
+
+perceval-quandela>=1.1
+graphix>=0.3
+pennylane>=0.38

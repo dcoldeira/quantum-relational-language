@@ -144,6 +144,91 @@ S = 2.8200  (limit 2.0)  VIOLATED
 qrl> quit
 ```
 
+## Quantum AI Platform
+
+QRL includes a natural-language platform that lets you ask quantum questions in plain English and get plain-English answers — powered by an LLM that generates QRL code, executes it, and explains the result.
+
+```
+You: "Can Alice and Bob share entanglement over a 200 km network?"
+ → LLM generates QRL code
+ → QRL executes (network fidelity, channel capacity)
+ → LLM explains: "Fidelity is 18% — too low for reliable communication. Shorten the hops."
+```
+
+### Setup
+
+```bash
+pip install -r requirements.txt
+
+# Code generation: install Ollama (https://ollama.com) and pull a model
+ollama pull marco:latest          # or: ollama pull deepseek-coder-v2:16b
+
+# Explanation (optional, better accuracy): set your Anthropic key
+export ANTHROPIC_API_KEY=sk-...
+```
+
+### Web UI
+
+```bash
+PYTHONPATH=src .venv/bin/uvicorn qai.api:app --reload --port 8000
+# Open http://localhost:8000
+```
+
+The UI has five **Quick Start chips** — click one to run a canonical problem instantly:
+
+| Chip | What it does |
+|------|-------------|
+| Bell Inequality Test | CHSH violation — confirms genuine quantum entanglement (S ≈ 2.83) |
+| Quantum Network Fidelity | End-to-end fidelity over a 160 km repeater network |
+| Network Bottleneck Analysis | Identifies which link to upgrade for maximum fidelity gain |
+| Quantum Channel Security | Causal analysis — can Eve at the relay intercept? |
+| Causal Intervention Analysis | Quantum do-calculus — what changes if you reset a node? |
+
+Each result shows the plain-English answer, expandable QRL code, and raw output.
+
+### Terminal CLI
+
+```bash
+PYTHONPATH=src .venv/bin/python -m qai.cli
+# or with Claude for explanations:
+PYTHONPATH=src .venv/bin/python -m qai.cli --explain-claude
+```
+
+```
+❓ Which link is the bottleneck in my 3-node network?
+⏳ Thinking...
+💡 The Alice → Repeater link (150 km) is the bottleneck. Upgrading it would
+   lift end-to-end fidelity from 26% to 56%. The Repeater → Bob link (30 km)
+   has negligible impact.
+```
+
+### Run templates directly (no LLM required)
+
+```bash
+PYTHONPATH=src .venv/bin/python -m qai.templates
+```
+
+Runs all five canonical problems end-to-end and prints results — useful for verifying the QRL layer without a running LLM.
+
+### Photonic hardware
+
+Bell questions are routed to Quandela's photonic hardware (`qpu:belenos`) when a token is available, with automatic fallback to the cloud simulator (`sim:belenos`):
+
+```bash
+export QUANDELA_TOKEN=your_token   # or place in Quandela/QUANDELA.txt
+# Then ask: "Is there Bell inequality violation?" → runs on real photons
+```
+
+### LLM providers
+
+| Provider | Use case | Setup |
+|----------|---------|-------|
+| `OllamaProvider` (default) | Local, free, no API key | `ollama pull marco:latest` |
+| `ClaudeProvider` | Best explanations | `ANTHROPIC_API_KEY=...` |
+| `TogetherAIProvider` | Cloud, no local GPU | `TOGETHER_API_KEY=...` |
+
+---
+
 ## Implementation Status
 
 **~6,500 lines of code | 218 tests passing | Full photonic pipeline verified**
@@ -264,20 +349,37 @@ quantum-relational-language/
 │   ├── core.py              # QuantumRelation, QuantumQuestion, Perspective
 │   ├── measurement.py       # Measurement and basis transformations
 │   ├── tensor_utils.py      # n-qubit tensor operations
+│   ├── causal.py            # CPTPMap, QuantumSwitch, QuantumCausalDAG, do-calculus
 │   ├── mbqc/                # MBQC compiler
 │   │   ├── graph_extraction.py      # Relations → graphs
 │   │   ├── pattern_generation.py    # Graphs → measurement patterns
 │   │   ├── adaptive_corrections.py  # Pauli corrections, teleportation
 │   │   └── measurement_pattern.py   # MeasurementPattern dataclass
-│   └── backends/            # Hardware backends
-│       ├── pennylane_adapter.py     # QRL → PennyLane
-│       ├── perceval_path_adapter.py # QRL → Perceval (path-encoded)
-│       └── graphix_adapter.py       # QRL → graphix
-├── tests/                   # 218 tests
+│   ├── backends/            # Hardware backends
+│   │   ├── pennylane_adapter.py     # QRL → PennyLane
+│   │   ├── perceval_path_adapter.py # QRL → Perceval (path-encoded)
+│   │   └── graphix_adapter.py       # QRL → graphix
+│   ├── domains/
+│   │   └── networks.py      # QuantumNetwork domain module
+│   └── physics/
+│       ├── bell.py          # CHSH inequality, BellTest
+│       └── ghz.py           # GHZ paradox, Mermin inequality
+├── qai/                     # Quantum AI platform
+│   ├── api.py               # FastAPI server (GET /templates, POST /ask)
+│   ├── loop.py              # QuantumAILoop: question → QRL → result → answer
+│   ├── executor.py          # Safe QRL code execution sandbox
+│   ├── providers.py         # OllamaProvider, ClaudeProvider, TogetherAIProvider
+│   ├── hardware.py          # hardware_bell_test() → Quandela qpu:belenos
+│   ├── templates.py         # Five canonical problem templates
+│   ├── cli.py               # Interactive terminal CLI
+│   └── static/index.html    # Web UI
+├── tests/                   # 544 tests
 ├── examples/
 │   ├── pennylane/           # PennyLane backend examples
 │   └── quandela/            # Photonic cloud examples
-└── papers/                  # Published paper (Zenodo)
+├── requirements.txt         # Core platform dependencies
+├── requirements-photonic.txt# Perceval, graphix, PennyLane (optional)
+└── papers/                  # QPL 2026 paper
 ```
 
 ## Documentation

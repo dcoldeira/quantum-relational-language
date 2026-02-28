@@ -1,0 +1,25 @@
+# QRL Platform — Python dependencies
+# Install with: pip install -r requirements.txt
+#
+# Optional extras:
+#   Photonic hardware (Quandela/Perceval):  pip install -r requirements-photonic.txt
+#   Claude explanation provider:           pip install anthropic>=0.80
+#   Local code-gen (Ollama):               install Ollama from https://ollama.com
+
+# ── Core QRL ──────────────────────────────────────────────────────────────────
+numpy>=1.20
+networkx>=2.6
+
+# ── Platform API ──────────────────────────────────────────────────────────────
+fastapi>=0.110
+uvicorn>=0.29
+pydantic>=2.0
+
+# ── LLM providers (optional — only needed for the AI loop) ────────────────────
+# Uncomment the provider(s) you need:
+# anthropic>=0.80       # ClaudeProvider (ANTHROPIC_API_KEY required)
+# together              # TogetherAIProvider (TOGETHER_API_KEY required)
+# OllamaProvider uses stdlib urllib — no extra package needed
+
+# ── Dev / test ────────────────────────────────────────────────────────────────
+pytest>=7.0

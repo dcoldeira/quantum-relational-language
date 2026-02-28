@@ -40,7 +40,7 @@ def create_app(loop: QuantumAILoop | None = None) -> FastAPI:
     Parameters
     ----------
     loop : QuantumAILoop, optional
-        Loop instance to use. Defaults to OllamaProvider(marco:latest).
+        Loop instance to use. Defaults to OllamaProvider(deepseek-coder-v2:16b).
         Pass a custom loop (e.g. with ClaudeProvider) for production use.
     """
     app = FastAPI(

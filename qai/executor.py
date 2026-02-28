@@ -73,6 +73,8 @@ def _build_namespace() -> dict:
         "bool": bool,
         "complex": complex,
         "tuple": tuple,
+        "set": set,
+        "frozenset": frozenset,
         "range": range,
         # result placeholder
         "result": None,

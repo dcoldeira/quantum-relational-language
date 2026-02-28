@@ -3,11 +3,12 @@
 Usage:
     cd quantum-relational-language
     source .venv/bin/activate
-    python -m platform.cli
+    PYTHONPATH=src python -m qai.cli
 
     # or with a specific model:
-    python -m platform.cli --model marco:latest
-    python -m platform.cli --provider together  # requires TOGETHER_API_KEY
+    PYTHONPATH=src python -m qai.cli --model deepseek-coder-v2:16b
+    PYTHONPATH=src python -m qai.cli --provider together  # requires TOGETHER_API_KEY
+    PYTHONPATH=src python -m qai.cli --explain-claude     # requires ANTHROPIC_API_KEY
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ from .providers import OllamaProvider, TogetherAIProvider, ClaudeProvider
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="QRL Quantum AI — ask quantum questions")
-    parser.add_argument("--model", default="marco:latest", help="Ollama model for code gen")
+    parser.add_argument("--model", default="deepseek-coder-v2:16b", help="Ollama model for code gen")
     parser.add_argument("--provider", choices=["ollama", "together"], default="ollama")
     parser.add_argument("--explain-claude", action="store_true",
                         help="Use Claude (haiku) for explanation step (requires ANTHROPIC_API_KEY)")

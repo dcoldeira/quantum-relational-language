@@ -51,6 +51,76 @@ EXAMPLE INPUT: Simulate a Bell state on Quandela's cloud simulator
 EXAMPLE OUTPUT:
 result = hardware_bell_test(platform="sim:belenos")
 
+EXAMPLE INPUT: What does 15% depolarising noise do to a pure qubit? How much information is lost?
+EXAMPLE OUTPUT:
+rho = np.array([[1,0],[0,0]], dtype=complex)
+noisy = depolarizing_channel(0.15).apply(rho)
+result = {{
+    "entropy_before": round(float(vonneumann_entropy(rho)), 4),
+    "entropy_after": round(float(vonneumann_entropy(noisy)), 4),
+    "purity_loss": round(float(vonneumann_entropy(noisy) - vonneumann_entropy(rho)), 4),
+}}
+
+EXAMPLE INPUT: How quantum-correlated are the two qubits in a Bell state? What is their mutual information?
+EXAMPLE OUTPUT:
+bell = np.array([[0.5,0,0,0.5],[0,0,0,0],[0,0,0,0],[0.5,0,0,0.5]], dtype=complex)
+mi = quantum_mutual_information(bell, dim_a=2, dim_b=2)
+result = {{
+    "mutual_information_bits": round(float(mi), 4),
+    "maximally_entangled": mi > 1.9,
+}}
+
+EXAMPLE INPUT: Is qubit A conditionally independent of qubit C given B? Does A-B-C form a quantum Markov chain?
+EXAMPLE OUTPUT:
+rho_a = np.array([[1,0],[0,0]], dtype=complex)
+rho_abc = np.kron(rho_a, np.eye(4, dtype=complex) / 4)
+chain = QuantumMarkovChain(rho_abc, dim_a=2, dim_b=2, dim_c=2)
+result = {{
+    "is_markov": chain.is_markov(),
+    "qcmi_bits": round(float(chain.qcmi()), 6),
+}}
+
+EXAMPLE INPUT: In a causal chain A → B → C with depolarising noise, does intervening on A change C's state?
+EXAMPLE OUTPUT:
+rho_zero = np.array([[1,0],[0,0]], dtype=complex)
+rho_one  = np.array([[0,0],[0,1]], dtype=complex)
+dag = QuantumCausalDAG()
+dag.add_node("A", dim=2, prior=rho_zero)
+dag.add_node("B", dim=2)
+dag.add_node("C", dim=2)
+dag.add_channel("A", "B", depolarizing_channel(0.1))
+dag.add_channel("B", "C", depolarizing_channel(0.1))
+effect = dag.quantum_causal_effect("C", "A", rho_one, sigma0=rho_zero)
+result = {{
+    "causal_effect": round(float(effect), 4),
+    "a_causally_affects_c": effect > 0.01,
+}}
+
+EXAMPLE INPUT: If I observe qubit B, are qubits A and C independent in a chain A → B → C?
+EXAMPLE OUTPUT:
+rho_zero = np.array([[1,0],[0,0]], dtype=complex)
+dag = QuantumCausalDAG()
+dag.add_node("A", dim=2, prior=rho_zero)
+dag.add_node("B", dim=2)
+dag.add_node("C", dim=2)
+dag.add_channel("A", "B", depolarizing_channel(0.1))
+dag.add_channel("B", "C", depolarizing_channel(0.1))
+result = {{
+    "d_separated_given_b": dag.is_d_separated("A", "C", {{"B"}}),
+    "d_separated_no_obs":  dag.is_d_separated("A", "C", set()),
+}}
+
+EXAMPLE INPUT: Which introduces more decoherence: 10% depolarising noise or 20% dephasing?
+EXAMPLE OUTPUT:
+rho = np.array([[0.5,0.5],[0.5,0.5]], dtype=complex)
+s_dep  = vonneumann_entropy(depolarizing_channel(0.10).apply(rho))
+s_deph = vonneumann_entropy(dephasing_channel(0.20).apply(rho))
+result = {{
+    "entropy_depolarizing": round(float(s_dep), 4),
+    "entropy_dephasing":    round(float(s_deph), 4),
+    "worse_channel": "depolarizing" if s_dep > s_deph else "dephasing",
+}}
+
 Available QRL APIs:
 === QRL API REFERENCE ===
 {_API_REFERENCE}
@@ -106,7 +176,7 @@ class QuantumAILoop:
 
     Parameters
     ----------
-    code_provider    : LLM for generating QRL code (default: marco:latest)
+    code_provider    : LLM for generating QRL code (default: deepseek-coder-v2:16b)
     explain_provider : LLM for explaining results (default: same as code_provider)
     max_retries      : how many times to re-prompt with the error traceback (default: 2)
     """
@@ -117,7 +187,7 @@ class QuantumAILoop:
         explain_provider: Optional[LLMProvider] = None,
         max_retries: int = 2,
     ) -> None:
-        self.code_provider = code_provider or OllamaProvider("marco:latest")
+        self.code_provider = code_provider or OllamaProvider("deepseek-coder-v2:16b")
         self.explain_provider = explain_provider or self.code_provider
         self.max_retries = max_retries
 
