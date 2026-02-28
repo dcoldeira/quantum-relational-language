@@ -123,6 +123,50 @@ class QuantumAILoop:
             system=_EXPLAIN_SYSTEM,
         )
 
+    def ask_full(self, question: str, verbose: bool = False) -> "tuple[str, ExecutionResult]":
+        """Ask a question and return (answer, exec_result) in a single LLM pass.
+
+        Generates code once, executes it, then explains — avoids the double
+        code-generation that would occur if ask() and run_code() were called
+        separately.
+        """
+        # Step 1: Generate QRL code
+        code_raw = self.code_provider.generate(
+            prompt=question,
+            system=_CODE_GEN_SYSTEM,
+        )
+
+        if verbose:
+            print(f"\n[QRL code]\n{code_raw}\n")
+
+        # Step 2: Execute
+        exec_result = execute(code_raw)
+
+        if verbose:
+            print(f"[result] {exec_result}\n")
+
+        # Step 3: Explain
+        if not exec_result.ok:
+            explain_prompt = (
+                f"User asked: {question}\n\n"
+                f"The QRL code produced an error:\n{exec_result.error}\n\n"
+                f"Explain briefly what went wrong and what information would be "
+                f"needed to answer the question."
+            )
+        else:
+            explain_prompt = (
+                f"User asked: {question}\n\n"
+                f"QRL code run:\n```python\n{exec_result.code}\n```\n\n"
+                f"Result: {exec_result.value}\n\n"
+                f"Explain what this result means in plain language."
+            )
+
+        answer = self.explain_provider.generate(
+            prompt=explain_prompt,
+            system=_EXPLAIN_SYSTEM,
+        )
+        return answer, exec_result
+
     def run_code(self, question: str) -> ExecutionResult:
         """Generate and execute QRL code for a question, return raw result."""
         code_raw = self.code_provider.generate(

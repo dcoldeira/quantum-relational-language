@@ -33,6 +33,8 @@ docs = [
 ]
 platform = [
     "anthropic>=0.80",
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
 ]
 photonic = [
     "perceval-quandela>=0.11",
