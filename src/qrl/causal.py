@@ -1097,3 +1097,365 @@ class QuantumSwitch:
             f"unitary={self.is_unitary()}, "
             f"P_win={p_win:.3f}){desc}"
         )
+
+
+# ======================================================================== #
+# Gap 4 — Quantum Conditional Independence                                  #
+#                                                                            #
+# References:                                                                #
+#   Petz (1986) Rev. Math. Phys. — Petz recovery map                       #
+#   Fawzi & Renner (2015) CMP — approximate quantum Markov chains          #
+#   Hayden et al. (2004) CMP — structure theorem for quantum Markov chains  #
+# ======================================================================== #
+
+
+# ---------------------------------------------------------------------- #
+# Private helpers                                                          #
+# ---------------------------------------------------------------------- #
+
+def _partial_trace_multipartite(
+    rho: np.ndarray,
+    keep: list[int],
+    dims: list[int],
+) -> np.ndarray:
+    """Partial trace over all subsystems NOT in *keep*.
+
+    Parameters
+    ----------
+    rho  : density matrix of shape (D, D) where D = prod(dims)
+    keep : list of subsystem indices to retain (0-indexed)
+    dims : list of subsystem dimensions
+
+    Returns
+    -------
+    Reduced density matrix of shape (d_keep, d_keep).
+    """
+    n = len(dims)
+    D = int(np.prod(dims))
+    if rho.shape != (D, D):
+        raise ValueError(
+            f"rho shape {rho.shape} inconsistent with dims={dims} (D={D})"
+        )
+
+    # Reshape into tensor with 2n indices: (d0,d1,...,d_{n-1}, d0,d1,...,d_{n-1})
+    rho_t = rho.reshape(dims + dims)
+
+    # Trace over the indices NOT in keep, one at a time (right-to-left order
+    # keeps index positions consistent as we collapse axes).
+    trace_over = sorted(set(range(n)) - set(keep), reverse=True)
+    current_n = n  # number of ket-indices currently present
+    for idx in trace_over:
+        # In the reshaped tensor the bra-index for subsystem idx is at
+        # position idx + current_n.
+        rho_t = np.trace(rho_t, axis1=idx, axis2=idx + current_n)
+        current_n -= 1
+
+    # Remaining shape is (keep_dims..., keep_dims...) — flatten to 2D.
+    keep_dims = [dims[k] for k in sorted(keep)]
+    d_keep = int(np.prod(keep_dims)) if keep_dims else 1
+    return rho_t.reshape(d_keep, d_keep)
+
+
+def _matrix_sqrt(A: np.ndarray) -> np.ndarray:
+    """Principal matrix square root via eigen-decomposition."""
+    vals, vecs = np.linalg.eigh(A)
+    vals = np.maximum(vals, 0.0)          # clip tiny negatives from numerics
+    return (vecs * np.sqrt(vals)) @ vecs.conj().T
+
+
+def _matrix_inv_sqrt(A: np.ndarray, tol: float = 1e-12) -> np.ndarray:
+    """Pseudo-inverse square root: zero out eigenvalues below *tol*."""
+    vals, vecs = np.linalg.eigh(A)
+    inv_sqrt_vals = np.where(vals > tol, 1.0 / np.sqrt(vals), 0.0)
+    return (vecs * inv_sqrt_vals) @ vecs.conj().T
+
+
+# ---------------------------------------------------------------------- #
+# Free functions — entropy & conditional information                       #
+# ---------------------------------------------------------------------- #
+
+def vonneumann_entropy(rho: np.ndarray, tol: float = 1e-14) -> float:
+    """Von Neumann entropy S(ρ) = -Tr[ρ log₂ ρ] in bits.
+
+    Parameters
+    ----------
+    rho : square density matrix (will be treated as Hermitian)
+    tol : eigenvalues below this are treated as zero
+
+    Returns
+    -------
+    Non-negative float.
+    """
+    rho = np.asarray(rho, dtype=complex)
+    vals = np.linalg.eigvalsh(rho)
+    vals = vals[vals > tol]
+    return float(-np.sum(vals * np.log2(vals)))
+
+
+def quantum_mutual_information(
+    rho_ab: np.ndarray,
+    dim_a: int,
+    dim_b: int,
+) -> float:
+    """Quantum mutual information I(A:B) = S(A) + S(B) - S(AB).
+
+    Parameters
+    ----------
+    rho_ab : density matrix of AB, shape (dim_a*dim_b, dim_a*dim_b)
+    dim_a  : dimension of subsystem A
+    dim_b  : dimension of subsystem B
+
+    Returns
+    -------
+    Non-negative float (in bits).
+    """
+    rho_ab = np.asarray(rho_ab, dtype=complex)
+    if rho_ab.shape != (dim_a * dim_b, dim_a * dim_b):
+        raise ValueError(
+            f"rho_ab shape {rho_ab.shape} inconsistent with "
+            f"dim_a={dim_a}, dim_b={dim_b}"
+        )
+    rho_a = _partial_trace_multipartite(rho_ab, keep=[0], dims=[dim_a, dim_b])
+    rho_b = _partial_trace_multipartite(rho_ab, keep=[1], dims=[dim_a, dim_b])
+    return (
+        vonneumann_entropy(rho_a)
+        + vonneumann_entropy(rho_b)
+        - vonneumann_entropy(rho_ab)
+    )
+
+
+def quantum_conditional_mutual_information(
+    rho_abc: np.ndarray,
+    dim_a: int,
+    dim_b: int,
+    dim_c: int,
+) -> float:
+    """Quantum conditional mutual information I(A:C|B) = S(AB)+S(BC)-S(ABC)-S(B).
+
+    Parameters
+    ----------
+    rho_abc : density matrix of ABC, shape (dim_a*dim_b*dim_c,)*2
+    dim_a, dim_b, dim_c : subsystem dimensions
+
+    Returns
+    -------
+    Float (non-negative for valid density matrices, up to numerical noise).
+    """
+    rho_abc = np.asarray(rho_abc, dtype=complex)
+    dims = [dim_a, dim_b, dim_c]
+    D = dim_a * dim_b * dim_c
+    if rho_abc.shape != (D, D):
+        raise ValueError(
+            f"rho_abc shape {rho_abc.shape} inconsistent with dims={dims}"
+        )
+    rho_ab  = _partial_trace_multipartite(rho_abc, keep=[0, 1], dims=dims)
+    rho_bc  = _partial_trace_multipartite(rho_abc, keep=[1, 2], dims=dims)
+    rho_b   = _partial_trace_multipartite(rho_abc, keep=[1],    dims=dims)
+    return (
+        vonneumann_entropy(rho_ab)
+        + vonneumann_entropy(rho_bc)
+        - vonneumann_entropy(rho_abc)
+        - vonneumann_entropy(rho_b)
+    )
+
+
+def is_quantum_conditionally_independent(
+    rho_abc: np.ndarray,
+    dim_a: int,
+    dim_b: int,
+    dim_c: int,
+    atol: float = 1e-8,
+) -> bool:
+    """Return True iff I(A:C|B) ≈ 0 (quantum Markov condition A-B-C).
+
+    Parameters
+    ----------
+    rho_abc        : tripartite density matrix
+    dim_a, dim_b, dim_c : subsystem dimensions
+    atol           : absolute tolerance for zero comparison
+
+    Returns
+    -------
+    bool
+    """
+    qcmi = quantum_conditional_mutual_information(
+        rho_abc, dim_a, dim_b, dim_c
+    )
+    return abs(qcmi) < atol
+
+
+def petz_recovery_map(
+    rho_bc: np.ndarray,
+    dim_b: int,
+    dim_c: int,
+    description: str = "",
+) -> "CPTPMap":
+    """Petz recovery map R_{B→BC} for the state ρ_{BC}.
+
+    Given ρ_{BC}, constructs the CPTP map that (approximately) recovers
+    A-B-C correlations after tracing out C.  The Petz map has Kraus
+    operators
+
+        K_j = ρ_{BC}^{1/2} (ρ_B^{-1/2} ⊗ |j⟩_C)
+
+    where {|j⟩} is the standard basis for C.
+
+    Parameters
+    ----------
+    rho_bc      : density matrix of BC, shape (dim_b*dim_c, dim_b*dim_c)
+    dim_b       : dimension of subsystem B (input of the map)
+    dim_c       : dimension of subsystem C (to be recovered)
+    description : optional label
+
+    Returns
+    -------
+    CPTPMap with input_dim=dim_b, output_dim=dim_b*dim_c
+    """
+    rho_bc = np.asarray(rho_bc, dtype=complex)
+    D_bc = dim_b * dim_c
+    if rho_bc.shape != (D_bc, D_bc):
+        raise ValueError(
+            f"rho_bc shape {rho_bc.shape} inconsistent with "
+            f"dim_b={dim_b}, dim_c={dim_c}"
+        )
+
+    rho_b = _partial_trace_multipartite(
+        rho_bc, keep=[0], dims=[dim_b, dim_c]
+    )
+
+    sqrt_bc    = _matrix_sqrt(rho_bc)             # shape (D_bc, D_bc)
+    inv_sqrt_b = _matrix_inv_sqrt(rho_b)          # shape (dim_b, dim_b)
+
+    # K_j = ρ_{BC}^{1/2} (ρ_B^{-1/2} ⊗ |j⟩⟨j|_C lifted to BC space)
+    # More precisely K_j: H_B → H_BC
+    # K_j = sqrt_bc  @  (inv_sqrt_b ⊗ e_j^T)
+    # where e_j^T has shape (1, dim_c), so (inv_sqrt_b ⊗ e_j^T): B → BC
+    # K_j = ρ_{BC}^{1/2} (I_B ⊗ |j⟩_C) ρ_B^{-1/2}
+    # Completeness: Σ K_j† K_j = ρ_B^{-1/2} Tr_C[ρ_{BC}] ρ_B^{-1/2} = I_B  ✓
+    kraus_ops = []
+    for j in range(dim_c):
+        e_j = np.zeros((dim_c, 1), dtype=complex)
+        e_j[j, 0] = 1.0
+        # (I_B ⊗ |j⟩): H_B → H_BC, maps |b⟩ → |b,j⟩, shape (dim_b*dim_c, dim_b)
+        embed = np.kron(np.eye(dim_b, dtype=complex), e_j)   # (D_bc, dim_b)
+        K_j = sqrt_bc @ embed @ inv_sqrt_b                   # (D_bc, dim_b)
+        kraus_ops.append(K_j)
+
+    desc = description or f"Petz recovery map R_(B→BC), dim_b={dim_b}, dim_c={dim_c}"
+    return CPTPMap(
+        kraus_ops=kraus_ops,
+        input_dim=dim_b,
+        output_dim=D_bc,
+        description=desc,
+    )
+
+
+# ---------------------------------------------------------------------- #
+# QuantumMarkovChain dataclass                                             #
+# ---------------------------------------------------------------------- #
+
+@dataclass
+class QuantumMarkovChain:
+    """Tripartite quantum state satisfying (or nearly satisfying) A-B-C.
+
+    A quantum Markov chain A-B-C has I(A:C|B) = 0, which by the Petz
+    theorem is equivalent to the existence of a recovery map R_{B→BC}
+    such that ρ_{ABC} = (id_A ⊗ R_{B→BC})(ρ_{AB}).
+
+    Parameters
+    ----------
+    rho_abc          : tripartite density matrix, shape (D, D)
+    dim_a, dim_b, dim_c : subsystem dimensions
+    description      : optional label
+    """
+
+    rho_abc: np.ndarray
+    dim_a: int
+    dim_b: int
+    dim_c: int
+    description: str = ""
+
+    def __post_init__(self) -> None:
+        self.rho_abc = np.asarray(self.rho_abc, dtype=complex)
+        D = self.dim_a * self.dim_b * self.dim_c
+        if self.rho_abc.shape != (D, D):
+            raise ValueError(
+                f"rho_abc shape {self.rho_abc.shape} inconsistent with "
+                f"dims=({self.dim_a},{self.dim_b},{self.dim_c})"
+            )
+
+    # ---- marginals ---------------------------------------------------- #
+
+    @property
+    def rho_ab(self) -> np.ndarray:
+        return _partial_trace_multipartite(
+            self.rho_abc, keep=[0, 1], dims=[self.dim_a, self.dim_b, self.dim_c]
+        )
+
+    @property
+    def rho_bc(self) -> np.ndarray:
+        return _partial_trace_multipartite(
+            self.rho_abc, keep=[1, 2], dims=[self.dim_a, self.dim_b, self.dim_c]
+        )
+
+    @property
+    def rho_b(self) -> np.ndarray:
+        return _partial_trace_multipartite(
+            self.rho_abc, keep=[1], dims=[self.dim_a, self.dim_b, self.dim_c]
+        )
+
+    # ---- information quantities --------------------------------------- #
+
+    def qcmi(self) -> float:
+        """I(A:C|B) in bits."""
+        return quantum_conditional_mutual_information(
+            self.rho_abc, self.dim_a, self.dim_b, self.dim_c
+        )
+
+    def is_markov(self, atol: float = 1e-8) -> bool:
+        """True iff I(A:C|B) < atol."""
+        return self.qcmi() < atol
+
+    # ---- Petz recovery ------------------------------------------------ #
+
+    def recovery_map(self) -> "CPTPMap":
+        """Return the Petz recovery map R_{B→BC} for ρ_{BC}."""
+        return petz_recovery_map(
+            self.rho_bc, self.dim_b, self.dim_c,
+            description=f"Petz R_(B→BC) for {self.description or 'QuantumMarkovChain'}",
+        )
+
+    def verify_recovery(self, atol: float = 1e-6) -> bool:
+        """Check (id_A ⊗ R_{B→BC})(ρ_{AB}) ≈ ρ_{ABC}.
+
+        Applies the Petz map on the B-subsystem of ρ_{AB} and tests
+        closeness to ρ_{ABC}.
+        """
+        R = self.recovery_map()   # B → BC
+        rho_ab = self.rho_ab      # shape (dim_a * dim_b, dim_a * dim_b)
+
+        # Apply R on subsystem B: (id_A ⊗ R)(ρ_{AB})
+        # ρ_{AB} has shape (dim_a * dim_b)^2; we apply R on the B part.
+        # Tensor structure: rho_ab[i,j] for i,j ∈ A⊗B
+        # Output should be (dim_a * dim_b * dim_c)^2
+        d_a, d_b, d_c = self.dim_a, self.dim_b, self.dim_c
+        D_in  = d_a * d_b
+        D_out = d_a * d_b * d_c
+
+        # Apply (id_A ⊗ R) via Kraus operators of R
+        # Each Kraus K_j maps B → BC, so (I_A ⊗ K_j) maps AB → A⊗BC
+        recovered = np.zeros((D_out, D_out), dtype=complex)
+        for K in R.kraus_ops:
+            # K: (d_b*d_c, d_b) = (dim_bc, dim_b)
+            IK = np.kron(np.eye(d_a, dtype=complex), K)  # (d_a*d_bc, d_a*d_b)
+            recovered += IK @ rho_ab @ IK.conj().T
+
+        return bool(np.allclose(recovered, self.rho_abc, atol=atol))
+
+    def __repr__(self) -> str:
+        desc = f" — {self.description}" if self.description else ""
+        return (
+            f"QuantumMarkovChain("
+            f"dims=({self.dim_a},{self.dim_b},{self.dim_c}), "
+            f"I(A:C|B)={self.qcmi():.4e}){desc}"
+        )

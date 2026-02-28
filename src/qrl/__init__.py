@@ -33,6 +33,12 @@ from .causal import (
     amplitude_damping_channel,
     projective_measurement_channel,
     QuantumSwitch,
+    vonneumann_entropy,
+    quantum_mutual_information,
+    quantum_conditional_mutual_information,
+    is_quantum_conditionally_independent,
+    petz_recovery_map,
+    QuantumMarkovChain,
 )
 
 __version__ = "0.2.0"
@@ -58,4 +64,10 @@ __all__ = [
     'amplitude_damping_channel',
     'projective_measurement_channel',
     'QuantumSwitch',
+    'vonneumann_entropy',
+    'quantum_mutual_information',
+    'quantum_conditional_mutual_information',
+    'is_quantum_conditionally_independent',
+    'petz_recovery_map',
+    'QuantumMarkovChain',
 ]
