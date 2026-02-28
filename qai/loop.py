@@ -39,6 +39,18 @@ net.add_link("Alice", "Repeater", ideal_channel())
 net.add_link("Repeater", "Bob", ideal_channel())
 result = not net.is_secure("Alice", "Bob", ["Repeater"])
 
+EXAMPLE INPUT: Is there genuine quantum entanglement? Does the system violate the Bell inequality?
+EXAMPLE OUTPUT:
+result = hardware_bell_test()
+
+EXAMPLE INPUT: Run a Bell inequality test on Quandela's real quantum photonic hardware
+EXAMPLE OUTPUT:
+result = hardware_bell_test(platform="qpu:belenos")
+
+EXAMPLE INPUT: Simulate a Bell state on Quandela's cloud simulator
+EXAMPLE OUTPUT:
+result = hardware_bell_test(platform="sim:belenos")
+
 Available QRL APIs:
 === QRL API REFERENCE ===
 {_API_REFERENCE}

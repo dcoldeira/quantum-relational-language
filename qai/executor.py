@@ -24,6 +24,7 @@ def _build_namespace() -> dict:
     )
     from qrl.physics.bell import chsh_test, theoretical_chsh, BellTest
     from qrl.physics.ghz import mermin_test, GHZTest, ghz_paradox_test
+    from qai.hardware import hardware_bell_test
 
     return {
         # numpy
@@ -48,6 +49,8 @@ def _build_namespace() -> dict:
         "quantum_conditional_mutual_information": quantum_conditional_mutual_information,
         "is_quantum_conditionally_independent": is_quantum_conditionally_independent,
         "petz_recovery_map": petz_recovery_map,
+        # hardware
+        "hardware_bell_test": hardware_bell_test,
         # physics
         "chsh_test": chsh_test,
         "theoretical_chsh": theoretical_chsh,
