@@ -5,6 +5,10 @@ services:
       - "8000:8000"
     env_file:
       - .env
+    volumes:
+      - bell-data:/data
+    environment:
+      - BELL_DB_PATH=/data/bell.db
     restart: unless-stopped
 
   # Uncomment to run a local Ollama instance alongside the platform.
@@ -18,5 +22,6 @@ services:
   #     - ollama-data:/root/.ollama
   #   restart: unless-stopped
 
-# volumes:
-#   ollama-data:
+volumes:
+  bell-data:
+  # ollama-data:

@@ -2,37 +2,48 @@
 
 from __future__ import annotations
 
+import os
+import secrets
 import uuid
 from typing import Any
 
 from pathlib import Path
 
-from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import get_provider
 from .loop import QuantumAILoop
+from .store import (
+    init_db, create_project, list_projects, get_project, delete_project,
+    add_message, get_messages,
+    add_file, get_files, delete_file,
+)
 from .templates import TEMPLATES
+
+_MAX_UPLOAD_BYTES = 100 * 1024   # 100 KB per file
+_MAX_FILES_PER_PROJECT = 10
+_ALLOWED_SUFFIXES = {".csv", ".json", ".txt", ".yaml", ".yml", ".md", ".tsv"}
 
 _STATIC_DIR = Path(__file__).parent / "static"
 
 
 # ------------------------------------------------------------------ #
-# Request / Response models (module-level for FastAPI introspection)  #
+# Request / Response models                                           #
 # ------------------------------------------------------------------ #
-
 
 class AskRequest(BaseModel):
     question: str
+    project_id: str = ""   # optional — if set, loads context + history
     verbose: bool = False
 
 
 class AskResponse(BaseModel):
     answer: str
     code: str
-    value: Any  # JSON-serialisable result from QRL execution
+    value: Any
     ok: bool
 
 
@@ -50,18 +61,33 @@ class JobStatus(BaseModel):
     ok: bool = False
 
 
-def create_app(loop: QuantumAILoop | None = None) -> FastAPI:
-    """Create and return the FastAPI application.
+class ProjectCreate(BaseModel):
+    name: str
+    description: str = ""
 
-    Parameters
-    ----------
-    loop : QuantumAILoop, optional
-        Loop instance to use. Defaults to provider selected by LLM_PROVIDER env var.
-        Set LLM_PROVIDER=claude|together|ollama (default: claude).
-    """
+
+# ------------------------------------------------------------------ #
+# Auth dependency                                                     #
+# ------------------------------------------------------------------ #
+
+def _require_api_key(x_api_key: str = Header(None)) -> None:
+    """Enforces API key auth if BELL_API_KEY is set. Disabled in dev mode."""
+    expected = os.environ.get("BELL_API_KEY", "")
+    if not expected:
+        return
+    if not x_api_key or not secrets.compare_digest(x_api_key, expected):
+        raise HTTPException(status_code=401, detail="Invalid or missing API key")
+
+
+# ------------------------------------------------------------------ #
+# App factory                                                         #
+# ------------------------------------------------------------------ #
+
+def create_app(loop: QuantumAILoop | None = None) -> FastAPI:
+    """Create and return the FastAPI application."""
     app = FastAPI(
-        title="QRL Quantum AI",
-        version="0.1.0",
+        title="Bell — Quantum AI",
+        version="0.2.0",
         description=(
             "Natural language → QRL → quantum result → plain English. "
             "Ask questions about quantum networks, entanglement, and causal structure."
@@ -74,17 +100,34 @@ def create_app(loop: QuantumAILoop | None = None) -> FastAPI:
     else:
         _loop = loop
 
-    # In-memory job store — fine for single-process deployment
+    # Initialise database on startup
+    init_db()
+
+    # In-memory job store (jobs are transient; results persist in SQLite via project)
     _jobs: dict[str, JobStatus] = {}
 
     # ------------------------------------------------------------------ #
     # Background worker                                                   #
     # ------------------------------------------------------------------ #
 
-    def _run_job(job_id: str, question: str, verbose: bool) -> None:
+    def _run_job(
+        job_id: str,
+        question: str,
+        verbose: bool,
+        project_id: str,
+        project_context: str,
+        history: list[dict],
+        files: list[dict],
+    ) -> None:
         _jobs[job_id].status = "running"
         try:
-            answer, exec_result = _loop.ask_full(question, verbose=verbose)
+            answer, exec_result = _loop.ask_full(
+                question,
+                verbose=verbose,
+                project_context=project_context,
+                history=history,
+                files=files,
+            )
             _jobs[job_id] = JobStatus(
                 job_id=job_id,
                 status="done",
@@ -93,6 +136,16 @@ def create_app(loop: QuantumAILoop | None = None) -> FastAPI:
                 value=exec_result.value,
                 ok=exec_result.ok,
             )
+            # Persist message to project if one is active
+            if project_id:
+                add_message(
+                    project_id=project_id,
+                    question=question,
+                    answer=answer,
+                    code=exec_result.code,
+                    value=exec_result.value,
+                    ok=exec_result.ok,
+                )
         except Exception as exc:
             _jobs[job_id] = JobStatus(
                 job_id=job_id,
@@ -102,66 +155,180 @@ def create_app(loop: QuantumAILoop | None = None) -> FastAPI:
             )
 
     # ------------------------------------------------------------------ #
-    # Routes                                                              #
+    # Inference routes                                                    #
     # ------------------------------------------------------------------ #
 
     @app.get("/health", tags=["meta"])
     def health() -> dict:
-        """Service liveness check."""
         return {"status": "ok"}
 
     @app.post("/ask", response_model=JobQueued, tags=["inference"])
-    def ask(req: AskRequest, background_tasks: BackgroundTasks) -> JobQueued:
-        """Submit a natural-language quantum question.
+    def ask(
+        req: AskRequest,
+        background_tasks: BackgroundTasks,
+        _: None = Depends(_require_api_key),
+    ) -> JobQueued:
+        """Submit a question. Returns job_id immediately. Poll GET /jobs/{id}."""
+        project_context = ""
+        history: list[dict] = []
+        files: list[dict] = []
 
-        Returns immediately with a job_id. Poll GET /jobs/{job_id} for the result.
-        """
+        if req.project_id:
+            project = get_project(req.project_id)
+            if project is None:
+                raise HTTPException(status_code=404, detail="Project not found")
+            project_context = project.get("description", "")
+            history = get_messages(req.project_id)
+            files = get_files(req.project_id)
+
         job_id = str(uuid.uuid4())
         _jobs[job_id] = JobStatus(job_id=job_id, status="queued")
-        background_tasks.add_task(_run_job, job_id, req.question, req.verbose)
+        background_tasks.add_task(
+            _run_job, job_id, req.question, req.verbose,
+            req.project_id, project_context, history, files,
+        )
         return JobQueued(job_id=job_id)
 
     @app.get("/jobs/{job_id}", response_model=JobStatus, tags=["inference"])
-    def get_job(job_id: str) -> JobStatus:
-        """Poll for the result of a submitted question.
-
-        Status values: queued → running → done | error
-        """
+    def get_job(job_id: str, _: None = Depends(_require_api_key)) -> JobStatus:
+        """Poll for job result. Status: queued → running → done | error"""
         job = _jobs.get(job_id)
         if job is None:
             raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found")
         return job
 
+    # ------------------------------------------------------------------ #
+    # Project routes                                                      #
+    # ------------------------------------------------------------------ #
+
+    @app.post("/projects", tags=["projects"])
+    def new_project(
+        req: ProjectCreate,
+        _: None = Depends(_require_api_key),
+    ) -> dict:
+        """Create a new project."""
+        if not req.name.strip():
+            raise HTTPException(status_code=400, detail="Project name cannot be empty")
+        return create_project(req.name, req.description)
+
+    @app.get("/projects", tags=["projects"])
+    def all_projects(_: None = Depends(_require_api_key)) -> list[dict]:
+        """List all projects."""
+        return list_projects()
+
+    @app.get("/projects/{project_id}", tags=["projects"])
+    def one_project(
+        project_id: str,
+        _: None = Depends(_require_api_key),
+    ) -> dict:
+        """Get a project and its conversation history."""
+        project = get_project(project_id)
+        if project is None:
+            raise HTTPException(status_code=404, detail="Project not found")
+        project["messages"] = get_messages(project_id)
+        return project
+
+    @app.delete("/projects/{project_id}", tags=["projects"])
+    def remove_project(
+        project_id: str,
+        _: None = Depends(_require_api_key),
+    ) -> dict:
+        """Delete a project and all its messages."""
+        if get_project(project_id) is None:
+            raise HTTPException(status_code=404, detail="Project not found")
+        delete_project(project_id)
+        return {"deleted": project_id}
+
+    # ------------------------------------------------------------------ #
+    # File routes                                                         #
+    # ------------------------------------------------------------------ #
+
+    @app.post("/projects/{project_id}/files", tags=["files"])
+    async def upload_file(
+        project_id: str,
+        file: UploadFile = File(...),
+        _: None = Depends(_require_api_key),
+    ) -> dict:
+        """Upload a text file (CSV, JSON, TXT, YAML, MD) to a project."""
+        if get_project(project_id) is None:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        suffix = Path(file.filename or "").suffix.lower()
+        if suffix not in _ALLOWED_SUFFIXES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported file type '{suffix}'. Allowed: {', '.join(sorted(_ALLOWED_SUFFIXES))}",
+            )
+
+        existing = get_files(project_id)
+        if len(existing) >= _MAX_FILES_PER_PROJECT:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Project already has {_MAX_FILES_PER_PROJECT} files. Delete one to upload more.",
+            )
+
+        raw = await file.read()
+        if len(raw) > _MAX_UPLOAD_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=f"File too large ({len(raw):,} bytes). Maximum is {_MAX_UPLOAD_BYTES:,} bytes.",
+            )
+
+        try:
+            content = raw.decode("utf-8")
+        except UnicodeDecodeError:
+            raise HTTPException(status_code=400, detail="File must be valid UTF-8 text.")
+
+        return add_file(project_id, file.filename or "upload.txt", content)
+
+    @app.get("/projects/{project_id}/files", tags=["files"])
+    def list_files(
+        project_id: str,
+        _: None = Depends(_require_api_key),
+    ) -> list[dict]:
+        """List files attached to a project (content excluded)."""
+        if get_project(project_id) is None:
+            raise HTTPException(status_code=404, detail="Project not found")
+        return [
+            {"id": f["id"], "filename": f["filename"], "created_at": f["created_at"],
+             "size": len(f["content"])}
+            for f in get_files(project_id)
+        ]
+
+    @app.delete("/projects/{project_id}/files/{file_id}", tags=["files"])
+    def remove_file(
+        project_id: str,
+        file_id: str,
+        _: None = Depends(_require_api_key),
+    ) -> dict:
+        """Delete a file from a project."""
+        if get_project(project_id) is None:
+            raise HTTPException(status_code=404, detail="Project not found")
+        delete_file(file_id)
+        return {"deleted": file_id}
+
+    # ------------------------------------------------------------------ #
+    # Template routes                                                     #
+    # ------------------------------------------------------------------ #
+
     @app.get("/templates", tags=["templates"])
     def list_templates() -> list[dict]:
-        """List the five canonical QRL problem templates."""
         return [
-            {
-                "name": t.name,
-                "domain": t.domain,
-                "question": t.question,
-                "description": t.description,
-            }
+            {"name": t.name, "domain": t.domain,
+             "question": t.question, "description": t.description}
             for t in TEMPLATES
         ]
 
     @app.post("/templates/{name}/run", response_model=AskResponse, tags=["templates"])
-    def run_template(name: str) -> AskResponse:
-        """Run a named template and return the result.
-
-        Template names must match exactly (e.g. ``Bell Inequality Test``).
-        Use GET /templates to list available names.
-        """
+    def run_template(
+        name: str,
+        _: None = Depends(_require_api_key),
+    ) -> AskResponse:
         tpl = next((t for t in TEMPLATES if t.name == name), None)
         if tpl is None:
             raise HTTPException(status_code=404, detail=f"Template '{name}' not found")
         r = tpl.run()
-        return AskResponse(
-            answer=r.answer,
-            code=r.exec_result.code,
-            value=r.value,
-            ok=r.ok,
-        )
+        return AskResponse(answer=r.answer, code=r.exec_result.code, value=r.value, ok=r.ok)
 
     # Serve static assets
     if _STATIC_DIR.exists():
@@ -174,5 +341,5 @@ def create_app(loop: QuantumAILoop | None = None) -> FastAPI:
     return app
 
 
-# Module-level app for uvicorn: `uvicorn qai.api:app`
+# Module-level app for uvicorn
 app = create_app()

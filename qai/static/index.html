@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>QRL Quantum AI</title>
+  <title>Bell — Quantum AI</title>
   <style>
     :root {
       --color-bg: #f7f8fa;
@@ -16,6 +16,7 @@
       --color-success: #059669;
       --color-error: #dc2626;
       --color-code-bg: #f3f4f6;
+      --sidebar-w: 240px;
       --radius: 10px;
       --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
     }
@@ -27,136 +28,361 @@
                    "Helvetica Neue", Arial, sans-serif;
       background: var(--color-bg);
       color: var(--color-text);
-      min-height: 100vh;
-      padding: 2rem 1rem;
+      height: 100vh;
+      display: flex;
+      overflow: hidden;
     }
 
-    .container {
-      max-width: 720px;
-      margin: 0 auto;
+    /* ── Sidebar ── */
+    .sidebar {
+      width: var(--sidebar-w);
+      min-width: var(--sidebar-w);
+      background: var(--color-surface);
+      border-right: 1px solid var(--color-border);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
     }
 
-    /* Header */
-    .header {
-      margin-bottom: 2rem;
+    .sidebar-header {
+      padding: 1rem;
+      border-bottom: 1px solid var(--color-border);
     }
-    .header h1 {
-      font-size: 1.6rem;
+
+    .sidebar-header h1 {
+      font-size: 1.1rem;
       font-weight: 700;
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-      margin-bottom: 0.25rem;
-    }
-    .header h1 .logo {
-      color: var(--color-primary);
-      font-size: 1.4rem;
-    }
-    .header p {
-      color: var(--color-muted);
-      font-size: 0.95rem;
+      gap: 0.4rem;
+      margin-bottom: 0.75rem;
     }
 
-    /* Card */
-    .card {
-      background: var(--color-surface);
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      padding: 1.5rem;
-      margin-bottom: 1.25rem;
-    }
+    .sidebar-header h1 .logo { color: var(--color-primary); }
 
-    /* Question form */
-    .question-label {
-      display: block;
-      font-size: 0.875rem;
-      font-weight: 600;
-      color: var(--color-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      margin-bottom: 0.6rem;
-    }
-    textarea {
+    button.new-project-btn {
       width: 100%;
-      padding: 0.75rem 1rem;
-      border: 1px solid var(--color-border);
-      border-radius: 6px;
-      font-family: inherit;
-      font-size: 1rem;
-      color: var(--color-text);
-      resize: vertical;
-      min-height: 90px;
-      outline: none;
-      transition: border-color 0.15s;
-      background: var(--color-bg);
-    }
-    textarea:focus {
-      border-color: var(--color-primary);
-      background: #fff;
-    }
-
-    .form-footer {
-      display: flex;
-      justify-content: flex-end;
-      margin-top: 0.75rem;
-    }
-
-    button#ask-btn {
       background: var(--color-primary);
       color: #fff;
       border: none;
       border-radius: 6px;
-      padding: 0.55rem 1.4rem;
-      font-size: 0.95rem;
+      padding: 0.5rem;
+      font-size: 0.85rem;
       font-weight: 600;
       cursor: pointer;
+      transition: background 0.15s;
+    }
+    button.new-project-btn:hover { background: var(--color-primary-hover); }
+
+    .project-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.5rem;
+    }
+
+    .project-item {
+      padding: 0.6rem 0.75rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      transition: background 0.1s;
+      color: var(--color-text);
+    }
+    .project-item:hover { background: var(--color-bg); }
+    .project-item.active {
+      background: #eef2ff;
+      color: var(--color-primary);
+      font-weight: 600;
+    }
+
+    .project-item .project-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+    }
+
+    .project-arrow {
+      font-size: 1rem;
+      color: var(--color-muted);
+      opacity: 0;
+      transition: opacity 0.1s;
+      flex-shrink: 0;
+    }
+    .project-item:hover .project-arrow { opacity: 1; }
+    .project-item.active .project-arrow { opacity: 1; color: var(--color-primary); }
+
+    .project-delete {
+      background: none;
+      border: none;
+      color: var(--color-muted);
+      cursor: pointer;
+      font-size: 0.8rem;
+      padding: 0 0.2rem;
+      opacity: 0;
+      transition: opacity 0.1s;
+    }
+    .project-item:hover .project-delete { opacity: 1; }
+    .project-delete:hover { color: var(--color-error); }
+
+    .no-projects {
+      padding: 1rem 0.75rem;
+      font-size: 0.82rem;
+      color: var(--color-muted);
+      font-style: italic;
+    }
+
+    /* ── Files panel ── */
+    .files-panel {
+      border-top: 1px solid var(--color-border);
+      padding: 0.6rem 0.75rem 0.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      max-height: 220px;
+    }
+    .files-panel.hidden { display: none; }
+
+    .files-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .files-header span {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--color-muted);
+    }
+    .upload-btn {
+      background: none;
+      border: 1px solid var(--color-border);
+      border-radius: 5px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--color-primary);
+      cursor: pointer;
+      padding: 0.18rem 0.55rem;
+      transition: background 0.12s, border-color 0.12s;
+    }
+    .upload-btn:hover { background: #eef2ff; border-color: var(--color-primary); }
+
+    .drop-zone {
+      border: 1.5px dashed var(--color-border);
+      border-radius: 6px;
+      padding: 0.55rem 0.5rem;
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--color-muted);
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      user-select: none;
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: var(--color-primary);
+      background: #eef2ff;
+      color: var(--color-primary);
+    }
+
+    .files-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      overflow-y: auto;
+    }
+
+    .file-item {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.3rem 0.4rem;
+      border-radius: 5px;
+      background: var(--color-bg);
+      font-size: 0.78rem;
+    }
+    .file-item .file-icon { font-size: 0.85rem; flex-shrink: 0; }
+    .file-item .file-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--color-text);
+    }
+    .file-item .file-size { font-size: 0.7rem; color: var(--color-muted); flex-shrink: 0; }
+    .file-delete {
+      background: none; border: none; color: var(--color-muted);
+      cursor: pointer; font-size: 0.75rem; padding: 0 0.1rem;
+      opacity: 0; transition: opacity 0.1s;
+    }
+    .file-item:hover .file-delete { opacity: 1; }
+    .file-delete:hover { color: var(--color-error); }
+
+    .sidebar-footer {
+      padding: 0.75rem 1rem;
+      border-top: 1px solid var(--color-border);
+      font-size: 0.75rem;
+      color: var(--color-muted);
+    }
+
+    /* ── Main area ── */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .main-header {
+      padding: 0.875rem 1.5rem;
+      border-bottom: 1px solid var(--color-border);
+      background: var(--color-surface);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .project-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--color-text);
+    }
+    .project-desc {
+      font-size: 0.8rem;
+      color: var(--color-muted);
+      margin-top: 0.1rem;
+    }
+
+    /* API key input */
+    .api-key-wrap {
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      transition: background 0.15s;
     }
-    button#ask-btn:hover:not(:disabled) {
-      background: var(--color-primary-hover);
-    }
-    button#ask-btn:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-
-    /* Spinner */
-    .spinner {
-      width: 14px;
-      height: 14px;
-      border: 2px solid rgba(255,255,255,0.4);
-      border-top-color: #fff;
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-      display: none;
-    }
-    button#ask-btn.loading .spinner { display: block; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* Templates */
-    .templates-label {
-      font-size: 0.8rem;
+    .api-key-wrap label {
+      font-size: 0.75rem;
       font-weight: 600;
       color: var(--color-muted);
       text-transform: uppercase;
       letter-spacing: 0.04em;
-      margin-bottom: 0.6rem;
+      white-space: nowrap;
     }
+    .api-key-wrap input {
+      padding: 0.35rem 0.65rem;
+      border: 1px solid var(--color-border);
+      border-radius: 6px;
+      font-family: "SF Mono", monospace;
+      font-size: 0.78rem;
+      color: var(--color-text);
+      background: var(--color-bg);
+      width: 180px;
+      outline: none;
+    }
+    .api-key-wrap input:focus { border-color: var(--color-primary); }
+    .api-key-wrap.hidden { display: none; }
+
+    /* ── Conversation history ── */
+    .conversation {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .no-conversation {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-muted);
+      text-align: center;
+      gap: 0.5rem;
+      padding: 2rem;
+    }
+    .no-conversation .hint { font-size: 0.85rem; }
+
+    .msg-pair { display: flex; flex-direction: column; gap: 0.5rem; }
+
+    .msg-q {
+      align-self: flex-end;
+      background: var(--color-primary);
+      color: #fff;
+      border-radius: 12px 12px 2px 12px;
+      padding: 0.6rem 1rem;
+      max-width: 80%;
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+
+    .msg-a {
+      align-self: flex-start;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 2px 12px 12px 12px;
+      padding: 0.75rem 1rem;
+      max-width: 85%;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      box-shadow: var(--shadow);
+    }
+    .msg-a.error { border-left: 3px solid var(--color-error); }
+
+    .msg-a .answer-text { white-space: pre-wrap; margin-bottom: 0.5rem; }
+
+    /* Thinking indicator */
+    .msg-thinking {
+      align-self: flex-start;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 2px 12px 12px 12px;
+      padding: 0.75rem 1rem;
+      font-size: 0.85rem;
+      color: var(--color-muted);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      box-shadow: var(--shadow);
+    }
+    .dot-pulse { display: flex; gap: 3px; }
+    .dot-pulse span {
+      width: 5px; height: 5px;
+      background: var(--color-muted);
+      border-radius: 50%;
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    .dot-pulse span:nth-child(2) { animation-delay: 0.2s; }
+    .dot-pulse span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes pulse { 0%,80%,100% { opacity: 0.3; } 40% { opacity: 1; } }
+
+    /* ── Ask bar ── */
+    .ask-bar {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid var(--color-border);
+      background: var(--color-surface);
+    }
+
     .chips {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.5rem;
+      gap: 0.4rem;
+      margin-bottom: 0.75rem;
     }
     .chip {
       background: var(--color-bg);
       border: 1px solid var(--color-border);
       border-radius: 999px;
-      padding: 0.35rem 0.9rem;
-      font-size: 0.85rem;
+      padding: 0.28rem 0.75rem;
+      font-size: 0.78rem;
       cursor: pointer;
       transition: background 0.15s, border-color 0.15s;
       color: var(--color-text);
@@ -167,32 +393,64 @@
       color: var(--color-primary);
     }
 
-    /* Result card */
-    #result-card { display: none; }
+    .ask-input-row {
+      display: flex;
+      gap: 0.75rem;
+      align-items: flex-end;
+    }
 
-    .result-header {
-      font-size: 1rem;
+    textarea#question {
+      flex: 1;
+      padding: 0.65rem 0.9rem;
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 0.95rem;
+      color: var(--color-text);
+      resize: none;
+      min-height: 48px;
+      max-height: 140px;
+      outline: none;
+      background: var(--color-bg);
+      transition: border-color 0.15s;
+      line-height: 1.5;
+    }
+    textarea#question:focus {
+      border-color: var(--color-primary);
+      background: #fff;
+    }
+
+    button#ask-btn {
+      background: var(--color-primary);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 0.65rem 1.25rem;
+      font-size: 0.9rem;
       font-weight: 600;
-      margin-bottom: 0.75rem;
+      cursor: pointer;
       display: flex;
       align-items: center;
       gap: 0.4rem;
+      transition: background 0.15s;
+      white-space: nowrap;
+      height: 48px;
     }
-    .result-header.ok { color: var(--color-success); }
-    .result-header.err { color: var(--color-error); }
+    button#ask-btn:hover:not(:disabled) { background: var(--color-primary-hover); }
+    button#ask-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
-    #result-card.error-card {
-      border-left: 4px solid var(--color-error);
+    .spinner {
+      width: 13px; height: 13px;
+      border: 2px solid rgba(255,255,255,0.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
     }
+    button#ask-btn.loading .spinner { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
-    .answer-text {
-      font-size: 1rem;
-      line-height: 1.65;
-      color: var(--color-text);
-      white-space: pre-wrap;
-      margin-bottom: 1rem;
-    }
-
+    /* ── Details (code / raw) ── */
     details {
       border: 1px solid var(--color-border);
       border-radius: 6px;
@@ -200,9 +458,9 @@
       overflow: hidden;
     }
     summary {
-      padding: 0.55rem 0.9rem;
+      padding: 0.4rem 0.75rem;
       cursor: pointer;
-      font-size: 0.875rem;
+      font-size: 0.8rem;
       font-weight: 500;
       color: var(--color-muted);
       user-select: none;
@@ -212,68 +470,159 @@
       gap: 0.4rem;
     }
     summary::-webkit-details-marker { display: none; }
-    summary::before {
-      content: "▸";
-      font-size: 0.75rem;
-      transition: transform 0.15s;
-    }
+    summary::before { content: "▸"; font-size: 0.7rem; transition: transform 0.15s; }
     details[open] summary::before { transform: rotate(90deg); }
     details[open] summary { border-bottom: 1px solid var(--color-border); }
 
     .code-block {
       background: var(--color-code-bg);
-      padding: 1rem;
+      padding: 0.75rem 1rem;
       overflow-x: auto;
-      font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
-      font-size: 0.82rem;
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 0.78rem;
       line-height: 1.6;
       white-space: pre;
       color: #374151;
     }
-
     .raw-value {
       background: var(--color-code-bg);
-      padding: 0.75rem 1rem;
-      font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
-      font-size: 0.82rem;
+      padding: 0.65rem 1rem;
+      font-family: "SF Mono", monospace;
+      font-size: 0.78rem;
       color: #374151;
       white-space: pre-wrap;
       word-break: break-all;
     }
-
-    /* Error traceback */
     .error-pre {
       background: #fff5f5;
       border: 1px solid #fca5a5;
       border-radius: 6px;
-      padding: 0.75rem 1rem;
-      font-family: "SF Mono", "Fira Code", monospace;
-      font-size: 0.8rem;
+      padding: 0.65rem 1rem;
+      font-family: "SF Mono", monospace;
+      font-size: 0.78rem;
       white-space: pre-wrap;
       word-break: break-word;
       color: var(--color-error);
-      margin-top: 0.75rem;
+      margin-top: 0.5rem;
     }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.35);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 100;
+    }
+    .modal-overlay.hidden { display: none; }
+
+    .modal {
+      background: var(--color-surface);
+      border-radius: var(--radius);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+      padding: 1.5rem;
+      width: 400px;
+      max-width: 90vw;
+    }
+    .modal h2 { font-size: 1.1rem; margin-bottom: 1rem; }
+
+    .modal label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--color-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 0.35rem;
+    }
+    .modal input, .modal textarea {
+      width: 100%;
+      padding: 0.6rem 0.85rem;
+      border: 1px solid var(--color-border);
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 0.9rem;
+      color: var(--color-text);
+      background: var(--color-bg);
+      outline: none;
+      margin-bottom: 1rem;
+    }
+    .modal textarea { resize: vertical; min-height: 80px; }
+    .modal input:focus, .modal textarea:focus { border-color: var(--color-primary); }
+
+    .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; }
+    .btn-primary {
+      background: var(--color-primary); color: #fff; border: none;
+      border-radius: 6px; padding: 0.5rem 1.1rem; font-size: 0.875rem;
+      font-weight: 600; cursor: pointer; transition: background 0.15s;
+    }
+    .btn-primary:hover { background: var(--color-primary-hover); }
+    .btn-ghost {
+      background: none; color: var(--color-muted); border: 1px solid var(--color-border);
+      border-radius: 6px; padding: 0.5rem 1rem; font-size: 0.875rem;
+      cursor: pointer; transition: border-color 0.15s;
+    }
+    .btn-ghost:hover { border-color: var(--color-muted); }
   </style>
 </head>
 <body>
-<div class="container">
 
-  <!-- Header -->
-  <div class="header">
-    <h1><span class="logo">◈</span> QRL Quantum AI</h1>
-    <p>Ask a quantum question, get a plain-English answer.</p>
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <h1><span class="logo">◈</span> Bell</h1>
+    <button class="new-project-btn" onclick="openNewProjectModal()">+ New Project</button>
+  </div>
+  <div class="project-list" id="project-list">
+    <div class="no-projects">No projects yet.</div>
   </div>
 
-  <!-- Ask card -->
-  <div class="card">
-    <label class="question-label" for="question">Your question</label>
-    <textarea
-      id="question"
-      rows="3"
-      placeholder="What do you want to know about your quantum system?"
-    ></textarea>
-    <div class="form-footer">
+  <!-- Files panel — shown when a project is active -->
+  <div class="files-panel hidden" id="files-panel">
+    <div class="files-header">
+      <span>Files</span>
+      <button class="upload-btn" onclick="triggerUpload()">+ Upload</button>
+    </div>
+    <div class="drop-zone" id="drop-zone" onclick="triggerUpload()">
+      Drop CSV, JSON, TXT…
+    </div>
+    <input type="file" id="file-input" multiple
+           accept=".csv,.json,.txt,.yaml,.yml,.md,.tsv"
+           style="display:none" onchange="handleFileSelect(event)" />
+    <div class="files-list" id="files-list"></div>
+  </div>
+
+  <div class="sidebar-footer">Powered by QRL</div>
+</aside>
+
+<!-- Main -->
+<div class="main">
+
+  <!-- Header -->
+  <div class="main-header">
+    <div>
+      <div class="project-title" id="project-title">No project selected</div>
+      <div class="project-desc" id="project-desc">Create or select a project to get started.</div>
+    </div>
+    <div class="api-key-wrap hidden" id="api-key-bar">
+      <label for="api-key-input">API Key</label>
+      <input type="password" id="api-key-input" placeholder="sk-bell-..." autocomplete="off" />
+    </div>
+  </div>
+
+  <!-- Conversation -->
+  <div class="conversation" id="conversation">
+    <div class="no-conversation">
+      <div style="font-size:2rem;">◈</div>
+      <div style="font-weight:600;">Ask Bell a quantum question</div>
+      <div class="hint">Create a project, describe your system, then ask anything.</div>
+    </div>
+  </div>
+
+  <!-- Ask bar -->
+  <div class="ask-bar">
+    <div class="chips" id="chips-container"></div>
+    <div class="ask-input-row">
+      <textarea id="question" rows="1" placeholder="Ask a quantum question…"></textarea>
       <button id="ask-btn" onclick="submitQuestion()">
         <span class="spinner"></span>
         <span id="btn-label">Ask →</span>
@@ -281,31 +630,515 @@
     </div>
   </div>
 
-  <!-- Template chips -->
-  <div class="card" style="padding: 1rem 1.5rem;">
-    <div class="templates-label">Quick start</div>
-    <div class="chips" id="chips-container">
-      <span class="chip" style="color:var(--color-muted);font-style:italic;">Loading templates…</span>
+</div>
+
+<!-- New Project Modal -->
+<div class="modal-overlay hidden" id="modal-overlay">
+  <div class="modal">
+    <h2>New Project</h2>
+    <label for="proj-name">Project name</label>
+    <input type="text" id="proj-name" placeholder="e.g. Photonic Network Analysis" />
+    <label for="proj-desc">Describe your quantum system</label>
+    <textarea id="proj-desc" placeholder="e.g. A 3-node photonic network: Alice → Repeater → Bob, 80 km fibre each hop, 15% depolarising noise at the repeater."></textarea>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="createProject()">Create</button>
     </div>
   </div>
-
-  <!-- Result card -->
-  <div class="card" id="result-card">
-    <div class="result-header" id="result-header"></div>
-    <div class="answer-text" id="answer-text"></div>
-    <div id="details-area"></div>
-  </div>
-
 </div>
 
 <script>
   // ------------------------------------------------------------------ //
-  // Load templates on page load                                         //
+  // State                                                               //
+  // ------------------------------------------------------------------ //
+  let currentProjectId = null;
+  const KEY_STORAGE = "bell_api_key";
+
+  // ------------------------------------------------------------------ //
+  // API key                                                             //
+  // ------------------------------------------------------------------ //
+  function getApiKey() {
+    const input = document.getElementById("api-key-input").value.trim();
+    if (input) { localStorage.setItem(KEY_STORAGE, input); return input; }
+    return localStorage.getItem(KEY_STORAGE) || "";
+  }
+
+  function authHeaders() {
+    const key = getApiKey();
+    return key
+      ? { "Content-Type": "application/json", "X-API-Key": key }
+      : { "Content-Type": "application/json" };
+  }
+
+  async function initApiKeyBar() {
+    try {
+      const r = await fetch("/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: "__probe__" }),
+      });
+      if (r.status === 401) {
+        document.getElementById("api-key-bar").classList.remove("hidden");
+        const saved = localStorage.getItem(KEY_STORAGE);
+        if (saved) document.getElementById("api-key-input").value = saved;
+      }
+    } catch (_) {}
+  }
+
+  // ------------------------------------------------------------------ //
+  // Projects                                                            //
+  // ------------------------------------------------------------------ //
+  async function loadProjects() {
+    try {
+      const res = await fetch("/projects", { headers: authHeaders() });
+      if (!res.ok) return;
+      const projects = await res.json();
+      renderProjectList(projects);
+      // Auto-select first project on initial page load
+      if (!currentProjectId && projects.length > 0) {
+        const p = projects[0];
+        await selectProject(p.id, p.name, p.description);
+      }
+    } catch (_) {}
+  }
+
+  let _projectsCache = {};
+
+  function renderProjectList(projects) {
+    _projectsCache = {};
+    projects.forEach(p => { _projectsCache[p.id] = p; });
+
+    const container = document.getElementById("project-list");
+    if (!projects.length) {
+      container.innerHTML = '<div class="no-projects">No projects yet.</div>';
+      return;
+    }
+    container.innerHTML = projects.map(p => `
+      <div class="project-item ${p.id === currentProjectId ? 'active' : ''}"
+           data-project-id="${p.id}" title="Open project">
+        <span class="project-name">${escHtml(p.name)}</span>
+        <span class="project-arrow">›</span>
+        <button class="project-delete" data-delete-id="${p.id}" title="Delete">✕</button>
+      </div>
+    `).join("");
+
+    container.querySelectorAll(".project-item").forEach(el => {
+      el.addEventListener("click", () => {
+        const p = _projectsCache[el.dataset.projectId];
+        if (p) selectProject(p.id, p.name, p.description);
+      });
+    });
+
+    container.querySelectorAll(".project-delete").forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.stopPropagation();
+        deleteProject(btn.dataset.deleteId);
+      });
+    });
+  }
+
+  async function selectProject(id, name, description) {
+    currentProjectId = id;
+    document.getElementById("project-title").textContent = name;
+    document.getElementById("project-desc").textContent = description || "No description.";
+    document.getElementById("files-panel").classList.remove("hidden");
+    await loadProjects(); // re-render to update active state
+    await Promise.all([loadConversation(id), loadFiles(id)]);
+  }
+
+  async function loadConversation(projectId) {
+    try {
+      const res = await fetch(`/projects/${projectId}`, { headers: authHeaders() });
+      if (!res.ok) return;
+      const project = await res.json();
+      renderConversation(project.messages || []);
+    } catch (_) {}
+  }
+
+  function renderConversation(messages) {
+    const container = document.getElementById("conversation");
+    if (!messages.length) {
+      container.innerHTML = `
+        <div class="no-conversation">
+          <div style="font-size:2rem;">◈</div>
+          <div style="font-weight:600;">Project ready</div>
+          <div class="hint">Ask your first quantum question below.</div>
+        </div>`;
+      return;
+    }
+    container.innerHTML = messages.map(m => renderMessagePair(m)).join("");
+    container.scrollTop = container.scrollHeight;
+  }
+
+  function renderMessagePair(msg) {
+    const answerContent = msg.ok
+      ? `<div class="answer-text">${escHtml(msg.answer)}</div>${makeDetails(msg)}`
+      : `<div class="answer-text" style="color:var(--color-error)">${escHtml(msg.answer)}</div>
+         ${msg.code ? `<pre class="error-pre">${escHtml(msg.code)}</pre>` : ""}`;
+    return `
+      <div class="msg-pair">
+        <div class="msg-q">${escHtml(msg.question)}</div>
+        <div class="msg-a ${msg.ok ? '' : 'error'}">${answerContent}</div>
+      </div>`;
+  }
+
+  function makeDetails(msg) {
+    let html = "";
+    if (msg.code) html += `
+      <details>
+        <summary>View QRL code</summary>
+        <pre class="code-block">${escHtml(msg.code)}</pre>
+      </details>`;
+    if (msg.value !== undefined && msg.value !== null) {
+      const raw = typeof msg.value === "string" ? msg.value : JSON.stringify(msg.value, null, 2);
+      html += `
+        <details>
+          <summary>View raw result</summary>
+          <div class="raw-value">${escHtml(raw)}</div>
+        </details>`;
+    }
+    return html;
+  }
+
+  // ------------------------------------------------------------------ //
+  // Modal                                                               //
+  // ------------------------------------------------------------------ //
+  function openNewProjectModal() {
+    document.getElementById("proj-name").value = "";
+    document.getElementById("proj-desc").value = "";
+    document.getElementById("modal-overlay").classList.remove("hidden");
+    setTimeout(() => document.getElementById("proj-name").focus(), 50);
+  }
+
+  function closeModal() {
+    document.getElementById("modal-overlay").classList.add("hidden");
+  }
+
+  async function createProject() {
+    const name = document.getElementById("proj-name").value.trim();
+    const description = document.getElementById("proj-desc").value.trim();
+    if (!name) { document.getElementById("proj-name").focus(); return; }
+
+    try {
+      const res = await fetch("/projects", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ name, description }),
+      });
+      if (!res.ok) return;
+      const project = await res.json();
+      closeModal();
+      await loadProjects();
+      await selectProject(project.id, project.name, project.description);
+    } catch (_) {}
+  }
+
+  async function deleteProject(id) {
+    if (!confirm("Delete this project and all its history?")) return;
+    await fetch(`/projects/${id}`, { method: "DELETE", headers: authHeaders() });
+    if (currentProjectId === id) {
+      currentProjectId = null;
+      document.getElementById("project-title").textContent = "No project selected";
+      document.getElementById("project-desc").textContent = "Create or select a project to get started.";
+      document.getElementById("files-panel").classList.add("hidden");
+      document.getElementById("conversation").innerHTML = `
+        <div class="no-conversation">
+          <div style="font-size:2rem;">◈</div>
+          <div style="font-weight:600;">Ask Bell a quantum question</div>
+          <div class="hint">Create a project, describe your system, then ask anything.</div>
+        </div>`;
+    }
+    await loadProjects();
+  }
+
+  // ------------------------------------------------------------------ //
+  // Files                                                               //
+  // ------------------------------------------------------------------ //
+  async function loadFiles(projectId) {
+    try {
+      const res = await fetch(`/projects/${projectId}/files`, { headers: authHeaders() });
+      if (!res.ok) return;
+      renderFiles(await res.json());
+    } catch (_) {}
+  }
+
+  function renderFiles(files) {
+    const list = document.getElementById("files-list");
+    const zone = document.getElementById("drop-zone");
+    if (!files.length) {
+      zone.style.display = "";
+      list.innerHTML = "";
+      return;
+    }
+    zone.style.display = "none";
+    list.innerHTML = files.map(f => `
+      <div class="file-item">
+        <span class="file-icon">${fileIcon(f.filename)}</span>
+        <span class="file-name" title="${escHtml(f.filename)}">${escHtml(f.filename)}</span>
+        <span class="file-size">${formatBytes(f.size)}</span>
+        <button class="file-delete"
+                onclick="deleteFileItem('${f.id}')"
+                title="Remove">✕</button>
+      </div>
+    `).join("");
+  }
+
+  function fileIcon(name) {
+    const ext = name.split(".").pop().toLowerCase();
+    if (ext === "csv" || ext === "tsv") return "📊";
+    if (ext === "json") return "{ }";
+    if (ext === "yaml" || ext === "yml") return "⚙";
+    if (ext === "md") return "📝";
+    return "📄";
+  }
+
+  function formatBytes(n) {
+    if (n < 1024) return n + " B";
+    if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";
+    return (n / 1024 / 1024).toFixed(1) + " MB";
+  }
+
+  function triggerUpload() {
+    document.getElementById("file-input").click();
+  }
+
+  function handleFileSelect(event) {
+    const files = Array.from(event.target.files);
+    event.target.value = "";  // reset so same file can be re-uploaded
+    files.forEach(f => uploadFile(f));
+  }
+
+  async function uploadFile(file) {
+    if (!currentProjectId) return;
+    const formData = new FormData();
+    formData.append("file", file);
+    const headers = {};
+    const key = getApiKey();
+    if (key) headers["X-API-Key"] = key;
+    try {
+      const res = await fetch(`/projects/${currentProjectId}/files`, {
+        method: "POST",
+        headers,
+        body: formData,
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert("Upload failed: " + (err.detail || JSON.stringify(err)));
+        return;
+      }
+      await loadFiles(currentProjectId);
+    } catch (e) {
+      alert("Upload error: " + e.message);
+    }
+  }
+
+  async function deleteFileItem(fileId) {
+    if (!currentProjectId) return;
+    const headers = {};
+    const key = getApiKey();
+    if (key) headers["X-API-Key"] = key;
+    await fetch(`/projects/${currentProjectId}/files/${fileId}`, {
+      method: "DELETE", headers,
+    });
+    await loadFiles(currentProjectId);
+  }
+
+  // Drag-and-drop
+  function setupDropZone() {
+    const zone = document.getElementById("drop-zone");
+    zone.addEventListener("dragover", e => { e.preventDefault(); zone.classList.add("drag-over"); });
+    zone.addEventListener("dragleave", () => zone.classList.remove("drag-over"));
+    zone.addEventListener("drop", e => {
+      e.preventDefault();
+      zone.classList.remove("drag-over");
+      Array.from(e.dataTransfer.files).forEach(uploadFile);
+    });
+    // Also allow drop anywhere in the sidebar files panel
+    const panel = document.getElementById("files-panel");
+    panel.addEventListener("dragover", e => { e.preventDefault(); zone.classList.add("drag-over"); });
+    panel.addEventListener("dragleave", () => zone.classList.remove("drag-over"));
+    panel.addEventListener("drop", e => {
+      e.preventDefault();
+      zone.classList.remove("drag-over");
+      Array.from(e.dataTransfer.files).forEach(uploadFile);
+    });
+  }
+
+  // ------------------------------------------------------------------ //
+  // Submit question                                                      //
+  // ------------------------------------------------------------------ //
+  async function submitQuestion() {
+    const question = document.getElementById("question").value.trim();
+    if (!question) { document.getElementById("question").focus(); return; }
+
+    setLoading(true);
+    appendUserMessage(question);
+    document.getElementById("question").value = "";
+
+    try {
+      const body = { question };
+      if (currentProjectId) body.project_id = currentProjectId;
+
+      const res = await fetch("/ask", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        appendErrorMessage(data.detail || JSON.stringify(data));
+        return;
+      }
+
+      const { job_id } = await res.json();
+      showThinking();
+      await pollJob(job_id);
+
+    } catch (e) {
+      removeThinking();
+      appendErrorMessage("Network error: " + e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function pollJob(job_id, intervalMs = 1500, maxAttempts = 120) {
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise(r => setTimeout(r, intervalMs));
+      try {
+        const res = await fetch(`/jobs/${job_id}`, { headers: authHeaders() });
+        if (!res.ok) { removeThinking(); appendErrorMessage("Could not retrieve job."); return; }
+        const job = await res.json();
+
+        if (job.status === "done") {
+          removeThinking();
+          appendAssistantMessage(job);
+          if (currentProjectId) await loadConversation(currentProjectId); // refresh from DB
+          return;
+        }
+        if (job.status === "error") {
+          removeThinking();
+          appendErrorMessage(job.answer || "An unexpected error occurred.");
+          return;
+        }
+      } catch (e) {
+        removeThinking();
+        appendErrorMessage("Network error: " + e.message);
+        return;
+      }
+    }
+    removeThinking();
+    appendErrorMessage("Request timed out.");
+  }
+
+  // ------------------------------------------------------------------ //
+  // Conversation rendering helpers                                      //
+  // ------------------------------------------------------------------ //
+  function appendUserMessage(question) {
+    const conv = document.getElementById("conversation");
+    // Remove placeholder if present
+    const placeholder = conv.querySelector(".no-conversation");
+    if (placeholder) placeholder.remove();
+
+    const pair = document.createElement("div");
+    pair.className = "msg-pair";
+    pair.id = "pending-pair";
+    pair.innerHTML = `<div class="msg-q">${escHtml(question)}</div>`;
+    conv.appendChild(pair);
+    conv.scrollTop = conv.scrollHeight;
+  }
+
+  function showThinking() {
+    const conv = document.getElementById("conversation");
+    const el = document.createElement("div");
+    el.className = "msg-thinking";
+    el.id = "thinking-indicator";
+    el.innerHTML = `Bell is thinking <div class="dot-pulse"><span></span><span></span><span></span></div>`;
+    conv.appendChild(el);
+    conv.scrollTop = conv.scrollHeight;
+  }
+
+  function removeThinking() {
+    const el = document.getElementById("thinking-indicator");
+    if (el) el.remove();
+  }
+
+  function appendAssistantMessage(job) {
+    const pair = document.getElementById("pending-pair");
+    if (!pair) return;
+    pair.removeAttribute("id");
+    const answerDiv = document.createElement("div");
+    answerDiv.className = `msg-a ${job.ok ? "" : "error"}`;
+    if (job.ok) {
+      answerDiv.innerHTML = `<div class="answer-text">${escHtml(job.answer)}</div>${makeDetails(job)}`;
+    } else {
+      answerDiv.innerHTML = `<div class="answer-text" style="color:var(--color-error)">${escHtml(job.answer)}</div>`;
+    }
+    pair.appendChild(answerDiv);
+    document.getElementById("conversation").scrollTop = 99999;
+  }
+
+  function appendErrorMessage(message) {
+    const pair = document.getElementById("pending-pair");
+    const target = pair || document.getElementById("conversation");
+    const el = document.createElement("div");
+    el.className = "msg-a error";
+    el.innerHTML = `<pre class="error-pre">${escHtml(String(message))}</pre>`;
+    if (pair) { pair.appendChild(el); pair.removeAttribute("id"); }
+    else target.appendChild(el);
+    document.getElementById("conversation").scrollTop = 99999;
+  }
+
+  // ------------------------------------------------------------------ //
+  // UI helpers                                                          //
+  // ------------------------------------------------------------------ //
+  function setLoading(on) {
+    const btn = document.getElementById("ask-btn");
+    btn.disabled = on;
+    btn.classList.toggle("loading", on);
+    document.getElementById("btn-label").textContent = on ? "" : "Ask →";
+  }
+
+  function useTemplate(question) {
+    document.getElementById("question").value = question;
+    submitQuestion();
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  // Auto-resize textarea
+  document.getElementById("question").addEventListener("input", function() {
+    this.style.height = "auto";
+    this.style.height = Math.min(this.scrollHeight, 140) + "px";
+  });
+
+  // Submit on Ctrl+Enter / Cmd+Enter
+  document.getElementById("question").addEventListener("keydown", e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") submitQuestion();
+  });
+
+  // Modal: submit on Enter in name field
+  document.getElementById("proj-name").addEventListener("keydown", e => {
+    if (e.key === "Enter") createProject();
+  });
+
+  // Close modal on overlay click
+  document.getElementById("modal-overlay").addEventListener("click", e => {
+    if (e.target === document.getElementById("modal-overlay")) closeModal();
+  });
+
+  // ------------------------------------------------------------------ //
+  // Templates                                                           //
   // ------------------------------------------------------------------ //
   async function loadTemplates() {
     try {
       const res = await fetch("/templates");
-      if (!res.ok) throw new Error("Failed to load templates");
+      if (!res.ok) return;
       const templates = await res.json();
       const container = document.getElementById("chips-container");
       container.innerHTML = "";
@@ -317,187 +1150,16 @@
         chip.addEventListener("click", () => useTemplate(t.question));
         container.appendChild(chip);
       });
-    } catch (e) {
-      document.getElementById("chips-container").innerHTML =
-        `<span style="color:var(--color-error);font-size:0.85rem;">Could not load templates.</span>`;
-    }
-  }
-
-  function useTemplate(question) {
-    document.getElementById("question").value = question;
-    submitQuestion();
+    } catch (_) {}
   }
 
   // ------------------------------------------------------------------ //
-  // Submit question — async job pattern                                 //
+  // Init                                                                //
   // ------------------------------------------------------------------ //
-  async function submitQuestion() {
-    const question = document.getElementById("question").value.trim();
-    if (!question) {
-      document.getElementById("question").focus();
-      return;
-    }
-
-    setLoading(true);
-    hideResult();
-
-    try {
-      // Step 1: submit — returns immediately with job_id
-      const res = await fetch("/ask", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        showError(data.detail || JSON.stringify(data));
-        return;
-      }
-
-      const { job_id } = await res.json();
-
-      // Step 2: poll GET /jobs/{job_id} until done or error
-      await pollJob(job_id);
-
-    } catch (e) {
-      showError("Network error: " + e.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function pollJob(job_id, intervalMs = 1500, maxAttempts = 120) {
-    for (let i = 0; i < maxAttempts; i++) {
-      await new Promise(r => setTimeout(r, intervalMs));
-
-      const res = await fetch(`/jobs/${job_id}`);
-      if (!res.ok) {
-        showError("Could not retrieve job status.");
-        return;
-      }
-
-      const job = await res.json();
-
-      if (job.status === "done") {
-        if (job.ok) {
-          showSuccess(job);
-        } else {
-          showError(job.answer, job.code);
-        }
-        return;
-      }
-
-      if (job.status === "error") {
-        showError(job.answer || "An unexpected error occurred.");
-        return;
-      }
-
-      // still queued or running — keep polling
-    }
-
-    showError("Request timed out — the job is taking too long. Try again.");
-  }
-
-  // ------------------------------------------------------------------ //
-  // UI helpers                                                          //
-  // ------------------------------------------------------------------ //
-  function setLoading(on) {
-    const btn = document.getElementById("ask-btn");
-    const label = document.getElementById("btn-label");
-    btn.disabled = on;
-    btn.classList.toggle("loading", on);
-    label.textContent = on ? "Thinking…" : "Ask →";
-  }
-
-  function hideResult() {
-    const card = document.getElementById("result-card");
-    card.style.display = "none";
-    card.classList.remove("error-card");
-  }
-
-  function showResult() {
-    document.getElementById("result-card").style.display = "block";
-  }
-
-  function showSuccess(data) {
-    const card = document.getElementById("result-card");
-    card.classList.remove("error-card");
-
-    document.getElementById("result-header").className = "result-header ok";
-    document.getElementById("result-header").textContent = "✓  Answer";
-    document.getElementById("answer-text").textContent = data.answer;
-
-    const detailsArea = document.getElementById("details-area");
-    detailsArea.innerHTML = "";
-
-    if (data.code) {
-      detailsArea.appendChild(makeDetails(
-        "View generated QRL code",
-        `<pre class="code-block">${escHtml(data.code)}</pre>`
-      ));
-    }
-
-    if (data.value !== undefined && data.value !== null) {
-      const raw = typeof data.value === "string"
-        ? data.value
-        : JSON.stringify(data.value, null, 2);
-      detailsArea.appendChild(makeDetails(
-        "View raw result",
-        `<div class="raw-value">${escHtml(raw)}</div>`
-      ));
-    }
-
-    showResult();
-  }
-
-  function showError(message, code) {
-    const card = document.getElementById("result-card");
-    card.classList.add("error-card");
-
-    document.getElementById("result-header").className = "result-header err";
-    document.getElementById("result-header").textContent = "✗  Error";
-    document.getElementById("answer-text").textContent = "";
-
-    const detailsArea = document.getElementById("details-area");
-    detailsArea.innerHTML = `<pre class="error-pre">${escHtml(String(message))}</pre>`;
-
-    if (code) {
-      detailsArea.appendChild(makeDetails(
-        "View generated QRL code",
-        `<pre class="code-block">${escHtml(code)}</pre>`
-      ));
-    }
-
-    showResult();
-  }
-
-  function makeDetails(summaryText, innerHtml) {
-    const d = document.createElement("details");
-    const s = document.createElement("summary");
-    s.textContent = summaryText;
-    d.appendChild(s);
-    const content = document.createElement("div");
-    content.innerHTML = innerHtml;
-    d.appendChild(content);
-    return d;
-  }
-
-  function escHtml(str) {
-    return str
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
-  }
-
-  // Submit on Ctrl+Enter / Cmd+Enter
-  document.getElementById("question").addEventListener("keydown", e => {
-    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") submitQuestion();
-  });
-
-  // Init
+  initApiKeyBar();
+  loadProjects();
   loadTemplates();
+  setupDropZone();
 </script>
 </body>
 </html>

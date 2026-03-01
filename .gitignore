@@ -21,5 +21,8 @@ htmlcov/
 *.out
 *.synctex.gz
 
+# Bell platform database
+bell.db
+
 # OS
 .DS_Store

@@ -150,15 +150,58 @@ def _retry_prompt(question: str, bad_code: str, error: str) -> str:
     )
 
 
-def _explain_prompt(question: str, exec_result: ExecutionResult) -> str:
+_MAX_FILE_CHARS = 40_000  # ~10k tokens — truncate beyond this per file
+
+
+def _build_question_prompt(
+    question: str,
+    project_context: str = "",
+    history: list[dict] | None = None,
+    files: list[dict] | None = None,
+) -> str:
+    """Build the full prompt for code generation, injecting project context, files, and history."""
+    parts = []
+    if project_context:
+        parts.append(f"Project context: {project_context}")
+    if files:
+        parts.append("Uploaded project data (use this to answer the question):")
+        for f in files:
+            content = f["content"]
+            if len(content) > _MAX_FILE_CHARS:
+                content = content[:_MAX_FILE_CHARS] + "\n[... truncated ...]"
+            parts.append(f"--- {f['filename']} ---\n{content}")
+    if history:
+        parts.append("Previous exchanges in this project:")
+        for msg in history[-5:]:  # last 5 exchanges
+            parts.append(f"Q: {msg['question']}")
+            parts.append(f"Result: {msg['value']}")
+    parts.append(f"Current question: {question}")
+    return "\n\n".join(parts)
+
+
+def _explain_prompt(
+    question: str,
+    exec_result: ExecutionResult,
+    history: list[dict] | None = None,
+) -> str:
+    history_text = ""
+    if history:
+        lines = ["Previous exchanges:"]
+        for msg in history[-3:]:
+            lines.append(f"Q: {msg['question']}")
+            lines.append(f"A: {msg['answer'][:200]}...")
+        history_text = "\n".join(lines) + "\n\n"
+
     if not exec_result.ok:
         return (
+            f"{history_text}"
             f"User asked: {question}\n\n"
             f"The QRL code produced an error:\n{exec_result.error}\n\n"
             f"Explain briefly what went wrong and what information would be "
             f"needed to answer the question."
         )
     return (
+        f"{history_text}"
         f"User asked: {question}\n\n"
         f"QRL code run:\n```python\n{exec_result.code}\n```\n\n"
         f"Result: {exec_result.value}\n\n"
@@ -196,12 +239,18 @@ class QuantumAILoop:
     # ------------------------------------------------------------------ #
 
     def _generate_and_execute(
-        self, question: str, verbose: bool = False
+        self,
+        question: str,
+        verbose: bool = False,
+        project_context: str = "",
+        history: list[dict] | None = None,
+        files: list[dict] | None = None,
     ) -> ExecutionResult:
         """Generate QRL code for *question*, execute it, retry on failure."""
+        prompt = _build_question_prompt(question, project_context, history, files)
         # First attempt
         code_raw = self.code_provider.generate(
-            prompt=question,
+            prompt=prompt,
             system=_CODE_GEN_SYSTEM,
         )
         if verbose:
@@ -245,12 +294,20 @@ class QuantumAILoop:
         )
 
     def ask_full(
-        self, question: str, verbose: bool = False
+        self,
+        question: str,
+        verbose: bool = False,
+        project_context: str = "",
+        history: list[dict] | None = None,
+        files: list[dict] | None = None,
     ) -> "tuple[str, ExecutionResult]":
         """Ask a question, return (plain-language answer, ExecutionResult)."""
-        exec_result = self._generate_and_execute(question, verbose=verbose)
+        exec_result = self._generate_and_execute(
+            question, verbose=verbose,
+            project_context=project_context, history=history, files=files,
+        )
         answer = self.explain_provider.generate(
-            prompt=_explain_prompt(question, exec_result),
+            prompt=_explain_prompt(question, exec_result, history),
             system=_EXPLAIN_SYSTEM,
         )
         return answer, exec_result
