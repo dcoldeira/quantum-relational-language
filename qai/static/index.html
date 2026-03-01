@@ -329,7 +329,7 @@
   }
 
   // ------------------------------------------------------------------ //
-  // Submit question                                                      //
+  // Submit question — async job pattern                                 //
   // ------------------------------------------------------------------ //
   async function submitQuestion() {
     const question = document.getElementById("question").value.trim();
@@ -342,31 +342,61 @@
     hideResult();
 
     try {
+      // Step 1: submit — returns immediately with job_id
       const res = await fetch("/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question }),
       });
 
-      const data = await res.json();
-
       if (!res.ok) {
-        // HTTP error (422, 500, etc.)
+        const data = await res.json();
         showError(data.detail || JSON.stringify(data));
         return;
       }
 
-      if (data.ok) {
-        showSuccess(data);
-      } else {
-        // QRL executed but returned ok=false
-        showError(data.answer, data.code);
-      }
+      const { job_id } = await res.json();
+
+      // Step 2: poll GET /jobs/{job_id} until done or error
+      await pollJob(job_id);
+
     } catch (e) {
       showError("Network error: " + e.message);
     } finally {
       setLoading(false);
     }
+  }
+
+  async function pollJob(job_id, intervalMs = 1500, maxAttempts = 120) {
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise(r => setTimeout(r, intervalMs));
+
+      const res = await fetch(`/jobs/${job_id}`);
+      if (!res.ok) {
+        showError("Could not retrieve job status.");
+        return;
+      }
+
+      const job = await res.json();
+
+      if (job.status === "done") {
+        if (job.ok) {
+          showSuccess(job);
+        } else {
+          showError(job.answer, job.code);
+        }
+        return;
+      }
+
+      if (job.status === "error") {
+        showError(job.answer || "An unexpected error occurred.");
+        return;
+      }
+
+      // still queued or running — keep polling
+    }
+
+    showError("Request timed out — the job is taking too long. Try again.");
   }
 
   // ------------------------------------------------------------------ //

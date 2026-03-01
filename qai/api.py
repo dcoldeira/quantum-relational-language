@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
+import uuid
 from typing import Any
 
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from .config import get_provider
 from .loop import QuantumAILoop
 from .templates import TEMPLATES
 
@@ -34,14 +36,28 @@ class AskResponse(BaseModel):
     ok: bool
 
 
+class JobQueued(BaseModel):
+    job_id: str
+    status: str = "queued"
+
+
+class JobStatus(BaseModel):
+    job_id: str
+    status: str          # "queued" | "running" | "done" | "error"
+    answer: str = ""
+    code: str = ""
+    value: Any = None
+    ok: bool = False
+
+
 def create_app(loop: QuantumAILoop | None = None) -> FastAPI:
     """Create and return the FastAPI application.
 
     Parameters
     ----------
     loop : QuantumAILoop, optional
-        Loop instance to use. Defaults to OllamaProvider(deepseek-coder-v2:16b).
-        Pass a custom loop (e.g. with ClaudeProvider) for production use.
+        Loop instance to use. Defaults to provider selected by LLM_PROVIDER env var.
+        Set LLM_PROVIDER=claude|together|ollama (default: claude).
     """
     app = FastAPI(
         title="QRL Quantum AI",
@@ -51,7 +67,39 @@ def create_app(loop: QuantumAILoop | None = None) -> FastAPI:
             "Ask questions about quantum networks, entanglement, and causal structure."
         ),
     )
-    _loop = loop or QuantumAILoop()
+
+    if loop is None:
+        _provider = get_provider()
+        _loop = QuantumAILoop(_provider, _provider)
+    else:
+        _loop = loop
+
+    # In-memory job store — fine for single-process deployment
+    _jobs: dict[str, JobStatus] = {}
+
+    # ------------------------------------------------------------------ #
+    # Background worker                                                   #
+    # ------------------------------------------------------------------ #
+
+    def _run_job(job_id: str, question: str, verbose: bool) -> None:
+        _jobs[job_id].status = "running"
+        try:
+            answer, exec_result = _loop.ask_full(question, verbose=verbose)
+            _jobs[job_id] = JobStatus(
+                job_id=job_id,
+                status="done",
+                answer=answer,
+                code=exec_result.code,
+                value=exec_result.value,
+                ok=exec_result.ok,
+            )
+        except Exception as exc:
+            _jobs[job_id] = JobStatus(
+                job_id=job_id,
+                status="error",
+                answer=str(exc),
+                ok=False,
+            )
 
     # ------------------------------------------------------------------ #
     # Routes                                                              #
@@ -62,20 +110,27 @@ def create_app(loop: QuantumAILoop | None = None) -> FastAPI:
         """Service liveness check."""
         return {"status": "ok"}
 
-    @app.post("/ask", response_model=AskResponse, tags=["inference"])
-    def ask(req: AskRequest) -> AskResponse:
-        """Ask a natural-language quantum question.
+    @app.post("/ask", response_model=JobQueued, tags=["inference"])
+    def ask(req: AskRequest, background_tasks: BackgroundTasks) -> JobQueued:
+        """Submit a natural-language quantum question.
 
-        The loop generates QRL code, executes it, and returns a plain-English
-        explanation alongside the raw result and code.
+        Returns immediately with a job_id. Poll GET /jobs/{job_id} for the result.
         """
-        answer, exec_result = _loop.ask_full(req.question, verbose=req.verbose)
-        return AskResponse(
-            answer=answer,
-            code=exec_result.code,
-            value=exec_result.value,
-            ok=exec_result.ok,
-        )
+        job_id = str(uuid.uuid4())
+        _jobs[job_id] = JobStatus(job_id=job_id, status="queued")
+        background_tasks.add_task(_run_job, job_id, req.question, req.verbose)
+        return JobQueued(job_id=job_id)
+
+    @app.get("/jobs/{job_id}", response_model=JobStatus, tags=["inference"])
+    def get_job(job_id: str) -> JobStatus:
+        """Poll for the result of a submitted question.
+
+        Status values: queued → running → done | error
+        """
+        job = _jobs.get(job_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found")
+        return job
 
     @app.get("/templates", tags=["templates"])
     def list_templates() -> list[dict]:
@@ -119,5 +174,5 @@ def create_app(loop: QuantumAILoop | None = None) -> FastAPI:
     return app
 
 
-# Module-level app for uvicorn: `uvicorn platform.api:app`
+# Module-level app for uvicorn: `uvicorn qai.api:app`
 app = create_app()

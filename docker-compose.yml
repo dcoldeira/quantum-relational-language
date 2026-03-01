@@ -1,0 +1,22 @@
+services:
+  qai:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  # Uncomment to run a local Ollama instance alongside the platform.
+  # Set LLM_PROVIDER=ollama and OLLAMA_HOST=http://ollama:11434 in .env.
+  #
+  # ollama:
+  #   image: ollama/ollama
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ollama-data:/root/.ollama
+  #   restart: unless-stopped
+
+# volumes:
+#   ollama-data:

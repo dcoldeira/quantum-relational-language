@@ -1,0 +1,25 @@
+# Environment — never commit secrets
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Tests
+.pytest_cache/
+.coverage
+htmlcov/
+
+# LaTeX
+*.aux
+*.log
+*.out
+*.synctex.gz
+
+# OS
+.DS_Store

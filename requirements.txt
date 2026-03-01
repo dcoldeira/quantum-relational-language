@@ -17,9 +17,10 @@ pydantic>=2.0
 
 # ── LLM providers (optional — only needed for the AI loop) ────────────────────
 # Uncomment the provider(s) you need:
-# anthropic>=0.80       # ClaudeProvider (ANTHROPIC_API_KEY required)
+anthropic>=0.80         # ClaudeProvider (ANTHROPIC_API_KEY required)
 # together              # TogetherAIProvider (TOGETHER_API_KEY required)
 # OllamaProvider uses stdlib urllib — no extra package needed
 
 # ── Dev / test ────────────────────────────────────────────────────────────────
 pytest>=7.0
+python-dotenv>=1.0

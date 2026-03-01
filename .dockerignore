@@ -1,0 +1,37 @@
+# Version control
+.git/
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+
+# Secrets — never bake into image
+.env
+
+# Not needed at runtime
+tests/
+papers/
+archive/
+uni/
+industry/
+planning/
+examples/
+vision/
+requirements-photonic.txt
+
+# Docs — exclude everything except the API reference needed by loop.py
+docs/
+!docs/api-reference.md
+
+# Misc
+.DS_Store
+*.aux
+*.log
