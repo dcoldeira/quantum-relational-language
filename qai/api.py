@@ -20,6 +20,7 @@ from .store import (
     init_db, create_project, list_projects, get_project, delete_project,
     add_message, get_messages,
     add_file, get_files, delete_file,
+    log_training_pair, get_training_pairs, approve_training_pair, reject_training_pair,
 )
 from .templates import TEMPLATES
 
@@ -59,6 +60,7 @@ class JobStatus(BaseModel):
     code: str = ""
     value: Any = None
     ok: bool = False
+    pair_id: str = ""    # training pair ID if logged (ok=True only)
 
 
 class ProjectCreate(BaseModel):
@@ -128,14 +130,6 @@ def create_app(loop: QuantumAILoop | None = None) -> FastAPI:
                 history=history,
                 files=files,
             )
-            _jobs[job_id] = JobStatus(
-                job_id=job_id,
-                status="done",
-                answer=answer,
-                code=exec_result.code,
-                value=exec_result.value,
-                ok=exec_result.ok,
-            )
             # Persist message to project if one is active
             if project_id:
                 add_message(
@@ -146,6 +140,25 @@ def create_app(loop: QuantumAILoop | None = None) -> FastAPI:
                     value=exec_result.value,
                     ok=exec_result.ok,
                 )
+            # Log successful pairs as raw training data for future fine-tuning.
+            # Approved pairs will be used to train our own local model.
+            # See vision/LLM_TRAINING_ROADMAP.md
+            pair_id = ""
+            if exec_result.ok:
+                pair_id = log_training_pair(
+                    question=question,
+                    code=exec_result.code,
+                    result=exec_result.value,
+                )
+            _jobs[job_id] = JobStatus(
+                job_id=job_id,
+                status="done",
+                answer=answer,
+                code=exec_result.code,
+                value=exec_result.value,
+                ok=exec_result.ok,
+                pair_id=pair_id,
+            )
         except Exception as exc:
             _jobs[job_id] = JobStatus(
                 job_id=job_id,
@@ -306,6 +319,42 @@ def create_app(loop: QuantumAILoop | None = None) -> FastAPI:
             raise HTTPException(status_code=404, detail="Project not found")
         delete_file(file_id)
         return {"deleted": file_id}
+
+    # ------------------------------------------------------------------ #
+    # Training data routes                                                #
+    # ------------------------------------------------------------------ #
+
+    @app.get("/training/pairs", tags=["training"])
+    def list_training_pairs(
+        approved_only: bool = False,
+        _: None = Depends(_require_api_key),
+    ) -> list[dict]:
+        """List collected training pairs. Used for review and approval."""
+        return get_training_pairs(approved_only=approved_only)
+
+    @app.post("/training/pairs/{pair_id}/approve", tags=["training"])
+    def approve_pair(
+        pair_id: str,
+        notes: str = "",
+        _: None = Depends(_require_api_key),
+    ) -> dict:
+        """Mark a training pair as approved for fine-tuning use."""
+        ok = approve_training_pair(pair_id, notes)
+        if not ok:
+            raise HTTPException(status_code=404, detail="Pair not found")
+        return {"approved": pair_id}
+
+    @app.post("/training/pairs/{pair_id}/reject", tags=["training"])
+    def reject_pair(
+        pair_id: str,
+        notes: str = "",
+        _: None = Depends(_require_api_key),
+    ) -> dict:
+        """Mark a training pair as rejected — wrong answer, do not use for training."""
+        ok = reject_training_pair(pair_id, notes)
+        if not ok:
+            raise HTTPException(status_code=404, detail="Pair not found")
+        return {"rejected": pair_id}
 
     # ------------------------------------------------------------------ #
     # Template routes                                                     #

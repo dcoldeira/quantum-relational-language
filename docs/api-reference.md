@@ -76,7 +76,11 @@ net = (QuantumNetwork("chain")
 ```python
 fiber_channel(length_km, loss_db_per_km=0.2, depolarizing=0.01)
 # Standard telecom fiber (SMF-28). loss_db_per_km=0.2 is 1550 nm standard.
-# Example: fiber_channel(100) → ~45% photon loss + 1% depolarizing
+# Photon loss probability = 1 − 10^(−0.2·km/10).
+#   50 km → 90% loss,  80 km → 97.5% loss,  100 km → 99% loss.
+# depolarizing= adds node-level noise ON TOP of the physical fiber loss.
+#   fiber_channel(80)                 → 80km fiber, 1% default birefringence noise
+#   fiber_channel(80, depolarizing=0.15) → same fiber + 15% node/memory noise
 
 free_space_channel(distance_km, atmospheric_loss=0.3, pointing_error=0.005)
 # Free-space optical (satellite or ground link).
@@ -87,10 +91,17 @@ ideal_channel()
 
 memory_noise(depolarizing=0.05)
 # Quantum memory noise (NV centre, trapped ion). No photon loss.
+# Use this to model ONLY node-level noise with no transmission loss.
 
 ChannelSpec(loss=0.1, depolarizing=0.02, dephasing=0.01)
-# Custom: compose amplitude damping → depolarizing → dephasing.
+# Custom channel: compose amplitude damping → depolarizing → dephasing.
+# WARNING: loss= is a probability (0–1), NOT dB. Do NOT use ChannelSpec to
+# model fiber links — use fiber_channel(km) which computes loss correctly.
 ```
+
+**Node noise rule:** When a node (e.g. Relay) introduces depolarizing noise, model it
+by setting `depolarizing=p` in the `fiber_channel` call on the **outgoing** link from
+that node. Do **not** construct a `ChannelSpec` with a guessed `loss=` value.
 
 ### Metrics
 

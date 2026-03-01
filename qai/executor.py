@@ -6,6 +6,7 @@ import re
 import traceback
 from typing import Any
 
+import math
 import numpy as np
 
 
@@ -27,6 +28,8 @@ def _build_namespace() -> dict:
     from qai.hardware import hardware_bell_test
 
     return {
+        # stdlib
+        "math": math,
         # numpy
         "np": np,
         # domain
@@ -76,6 +79,16 @@ def _build_namespace() -> dict:
         "set": set,
         "frozenset": frozenset,
         "range": range,
+        "sum": sum,
+        "zip": zip,
+        "enumerate": enumerate,
+        "sorted": sorted,
+        "reversed": reversed,
+        "any": any,
+        "all": all,
+        "chr": chr,
+        "ord": ord,
+        "isinstance": isinstance,
         # result placeholder
         "result": None,
     }

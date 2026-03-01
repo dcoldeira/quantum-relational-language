@@ -450,6 +450,34 @@
     button#ask-btn.loading .spinner { display: block; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* ── Training feedback ── */
+    .feedback-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 0.6rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid var(--color-border);
+    }
+    .feedback-label {
+      font-size: 0.72rem;
+      color: var(--color-muted);
+    }
+    .feedback-btn {
+      background: none;
+      border: 1px solid var(--color-border);
+      border-radius: 5px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      padding: 0.15rem 0.5rem;
+      transition: background 0.12s, border-color 0.12s;
+      line-height: 1.4;
+    }
+    .feedback-btn:hover { background: var(--color-bg); border-color: var(--color-muted); }
+    .feedback-btn.approved { background: #d1fae5; border-color: #059669; }
+    .feedback-btn.rejected { background: #fee2e2; border-color: #dc2626; }
+    .feedback-btn:disabled { cursor: default; opacity: 0.7; }
+
     /* ── Details (code / raw) ── */
     details {
       border: 1px solid var(--color-border);
@@ -672,11 +700,8 @@
 
   async function initApiKeyBar() {
     try {
-      const r = await fetch("/ask", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: "__probe__" }),
-      });
+      // Probe a GET endpoint — never triggers Claude API calls
+      const r = await fetch("/projects", { method: "GET" });
       if (r.status === 401) {
         document.getElementById("api-key-bar").classList.remove("hidden");
         const saved = localStorage.getItem(KEY_STORAGE);
@@ -1014,7 +1039,8 @@
         if (job.status === "done") {
           removeThinking();
           appendAssistantMessage(job);
-          if (currentProjectId) await loadConversation(currentProjectId); // refresh from DB
+          // Do NOT reload conversation here — it would overwrite the feedback buttons.
+          // History will show correctly on next project load.
           return;
         }
         if (job.status === "error") {
@@ -1071,12 +1097,49 @@
     const answerDiv = document.createElement("div");
     answerDiv.className = `msg-a ${job.ok ? "" : "error"}`;
     if (job.ok) {
-      answerDiv.innerHTML = `<div class="answer-text">${escHtml(job.answer)}</div>${makeDetails(job)}`;
+      answerDiv.innerHTML = `<div class="answer-text">${escHtml(job.answer)}</div>${makeDetails(job)}${makeFeedbackBar(job.pair_id)}`;
     } else {
       answerDiv.innerHTML = `<div class="answer-text" style="color:var(--color-error)">${escHtml(job.answer)}</div>`;
     }
     pair.appendChild(answerDiv);
+    // Wire up feedback buttons
+    if (job.pair_id) {
+      const upBtn = answerDiv.querySelector(".feedback-btn.up");
+      const downBtn = answerDiv.querySelector(".feedback-btn.down");
+      if (upBtn) upBtn.addEventListener("click", () => submitFeedback(job.pair_id, "approve", upBtn, downBtn));
+      if (downBtn) downBtn.addEventListener("click", () => submitFeedback(job.pair_id, "reject", upBtn, downBtn));
+    }
     document.getElementById("conversation").scrollTop = 99999;
+  }
+
+  function makeFeedbackBar(pairId) {
+    if (!pairId) return "";
+    return `
+      <div class="feedback-bar">
+        <span class="feedback-label">Was this answer correct?</span>
+        <button class="feedback-btn up" title="Yes — good training example">👍</button>
+        <button class="feedback-btn down" title="No — wrong answer, do not use">👎</button>
+      </div>`;
+  }
+
+  async function submitFeedback(pairId, action, upBtn, downBtn) {
+    const headers = {};
+    const key = getApiKey();
+    if (key) headers["X-API-Key"] = key;
+    try {
+      await fetch(`/training/pairs/${pairId}/${action}`, { method: "POST", headers });
+      upBtn.disabled = true;
+      downBtn.disabled = true;
+      if (action === "approve") {
+        upBtn.classList.add("approved");
+        upBtn.title = "Marked as correct ✓";
+      } else {
+        downBtn.classList.add("rejected");
+        downBtn.title = "Marked as incorrect ✗";
+      }
+    } catch (e) {
+      console.error("Feedback error:", e);
+    }
   }
 
   function appendErrorMessage(message) {

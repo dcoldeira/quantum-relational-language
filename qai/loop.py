@@ -39,6 +39,35 @@ net.add_link("Alice", "Repeater", ideal_channel())
 net.add_link("Repeater", "Bob", ideal_channel())
 result = not net.is_secure("Alice", "Bob", ["Repeater"])
 
+EXAMPLE INPUT: Alice→Relay→Bob, 80km fiber each hop, 15% depolarising noise at the Relay node. Which link is the bottleneck?
+EXAMPLE OUTPUT:
+# IMPORTANT: for fiber + node noise, use fiber_channel(km, depolarizing=p).
+# NEVER use ChannelSpec(loss=0.2, ...) for a fiber link — loss=0.2 means 20%,
+# but 80km SMF-28 fiber has ~97.5% photon loss. Always use fiber_channel(km).
+net = QuantumNetwork("relay-net")
+net.add_node("Alice").add_node("Relay").add_node("Bob")
+net.add_link("Alice", "Relay", fiber_channel(80))                    # fiber only
+net.add_link("Relay", "Bob",   fiber_channel(80, depolarizing=0.15)) # fiber + 15% node noise
+f_ar = net.entanglement_fidelity("Alice", "Relay")
+f_rb = net.entanglement_fidelity("Relay", "Bob")
+bottleneck = net.bottleneck_link("Bob")
+result = {{
+    "alice_relay_fidelity": round(f_ar, 4),
+    "relay_bob_fidelity":   round(f_rb, 4),
+    "bottleneck": f"{{bottleneck[0]}}→{{bottleneck[1]}}",
+    "end_to_end_fidelity": round(net.entanglement_fidelity("Alice", "Bob"), 4),
+}}
+
+EXAMPLE INPUT: What is the CHSH S value for a Bell state? Does it violate the inequality?
+EXAMPLE OUTPUT:
+test = chsh_test(trials=1000)
+result = {{
+    "S": round(float(test.S), 4),
+    "violates": bool(test.violates),
+    "classical_bound": 2.0,
+    "quantum_max": round(float(theoretical_chsh()), 4),
+}}
+
 EXAMPLE INPUT: Is there genuine quantum entanglement? Does the system violate the Bell inequality?
 EXAMPLE OUTPUT:
 result = hardware_bell_test()
@@ -120,6 +149,11 @@ result = {{
     "entropy_dephasing":    round(float(s_deph), 4),
     "worse_channel": "depolarizing" if s_dep > s_deph else "dephasing",
 }}
+
+If the question CANNOT be answered by running QRL code — for example it asks about
+Bell's own capabilities, requests a general explanation, or is outside the domains
+listed above — output ONLY this single line:
+result = "CANNOT_ANSWER: <one sentence saying what kind of question Bell can answer instead>"
 
 Available QRL APIs:
 === QRL API REFERENCE ===
@@ -306,6 +340,11 @@ class QuantumAILoop:
             question, verbose=verbose,
             project_context=project_context, history=history, files=files,
         )
+        # Short-circuit: LLM signalled the question can't be answered with QRL code
+        if isinstance(exec_result.value, str) and exec_result.value.startswith("CANNOT_ANSWER:"):
+            reason = exec_result.value[len("CANNOT_ANSWER:"):].strip()
+            answer = f"Bell can only answer questions that produce a quantum computation. {reason}"
+            return answer, exec_result
         answer = self.explain_provider.generate(
             prompt=_explain_prompt(question, exec_result, history),
             system=_EXPLAIN_SYSTEM,
