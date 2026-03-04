@@ -1,0 +1,3 @@
+bell.entangledcode.dev {
+    reverse_proxy qai:8000
+}

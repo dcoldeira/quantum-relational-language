@@ -304,6 +304,20 @@ class CHSHResult:
     trials_per_setting: int = 1000
 
     @property
+    def violates(self) -> bool:
+        """Alias for violated (common spelling variant)."""
+        return self.violated
+
+    @property
+    def std_err(self) -> float:
+        """Approximate standard error of the S estimator.
+
+        Each of the 4 correlations E(a,b) is estimated from trials_per_setting
+        samples. SE(S) ≤ 2/√n (factor 2 from ±signs in the CHSH combination).
+        """
+        return 2.0 / np.sqrt(max(self.trials_per_setting, 1))
+
+    @property
     def violation_amount(self) -> float:
         """How much the classical limit was exceeded."""
         return max(0, self.S - self.classical_limit)

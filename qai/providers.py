@@ -99,17 +99,15 @@ class TogetherAIProvider(LLMProvider):
 
 @dataclass
 class ClaudeProvider(LLMProvider):
-    """Anthropic Claude provider — best for explanation and reasoning.
+    """Anthropic Claude provider — code generation and explanation.
 
-    Uses claude-haiku-4-5 by default (~$0.25/M tokens, fast).
+    Uses claude-haiku-4-5 by default (fast, cheap, good at structured code).
     Set ANTHROPIC_API_KEY environment variable.
-
-    Recommended use: explanation step only (code gen stays local with Ollama).
     """
 
     model: str = "claude-haiku-4-5-20251001"
     api_key: str = ""
-    max_tokens: int = 1024
+    max_tokens: int = 2048
     temperature: float = 0.3
 
     def __post_init__(self) -> None:

@@ -17,7 +17,12 @@ from pydantic import BaseModel
 from .config import get_provider
 from .loop import QuantumAILoop
 from .store import (
-    init_db, create_project, list_projects, get_project, delete_project,
+    init_db,
+    # auth
+    create_user, get_user_by_login, get_session_user, create_session, delete_session,
+    count_users, verify_password,
+    # projects
+    create_project, list_projects, get_project, delete_project,
     add_message, get_messages,
     add_file, get_files, delete_file,
     log_training_pair, get_training_pairs, approve_training_pair, reject_training_pair,
@@ -68,17 +73,43 @@ class ProjectCreate(BaseModel):
     description: str = ""
 
 
+class RegisterRequest(BaseModel):
+    username: str
+    email: str
+    password: str
+
+
+class LoginRequest(BaseModel):
+    username: str   # username or email
+    password: str
+
+
 # ------------------------------------------------------------------ #
 # Auth dependency                                                     #
 # ------------------------------------------------------------------ #
 
-def _require_api_key(x_api_key: str = Header(None)) -> None:
-    """Enforces API key auth if BELL_API_KEY is set. Disabled in dev mode."""
-    expected = os.environ.get("BELL_API_KEY", "")
-    if not expected:
-        return
-    if not x_api_key or not secrets.compare_digest(x_api_key, expected):
-        raise HTTPException(status_code=401, detail="Invalid or missing API key")
+# Sentinel representing the admin (BELL_API_KEY holder) — has no DB user row
+_ADMIN_USER: dict = {"id": None, "username": "admin", "is_admin": True}
+
+
+def _get_current_user(x_api_key: str = Header(None)) -> dict:
+    """Return the authenticated user dict, or raise 401.
+
+    Two valid credential types:
+    - BELL_API_KEY env var → admin bypass (no user row needed)
+    - Session token issued by POST /auth/login → regular user
+    """
+    if not x_api_key:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    # Admin master key
+    admin_key = os.environ.get("BELL_API_KEY", "")
+    if admin_key and secrets.compare_digest(x_api_key, admin_key):
+        return _ADMIN_USER
+    # Session token
+    user = get_session_user(x_api_key)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Invalid or expired session")
+    return user
 
 
 # ------------------------------------------------------------------ #
@@ -168,6 +199,48 @@ def create_app(loop: QuantumAILoop | None = None) -> FastAPI:
             )
 
     # ------------------------------------------------------------------ #
+    # Auth routes                                                         #
+    # ------------------------------------------------------------------ #
+
+    @app.post("/auth/register", tags=["auth"])
+    def register(req: RegisterRequest) -> dict:
+        """Create a new user account and return a session token."""
+        if len(req.username.strip()) < 2:
+            raise HTTPException(status_code=400, detail="Username must be at least 2 characters")
+        if len(req.password) < 8:
+            raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+        if "@" not in req.email:
+            raise HTTPException(status_code=400, detail="Invalid email address")
+        import sqlite3 as _sqlite3
+        try:
+            user = create_user(req.username, req.email, req.password)
+        except _sqlite3.IntegrityError:
+            raise HTTPException(status_code=409, detail="Username or email already taken")
+        token = create_session(user["id"])
+        return {"token": token, "username": user["username"], "user_id": user["id"]}
+
+    @app.post("/auth/login", tags=["auth"])
+    def login(req: LoginRequest) -> dict:
+        """Authenticate with username/email + password. Returns a session token."""
+        user = get_user_by_login(req.username)
+        if user is None or not verify_password(req.password, user["password_hash"]):
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        token = create_session(user["id"])
+        return {"token": token, "username": user["username"], "user_id": user["id"]}
+
+    @app.post("/auth/logout", tags=["auth"])
+    def logout(x_api_key: str = Header(None)) -> dict:
+        """Invalidate the current session token."""
+        if x_api_key:
+            delete_session(x_api_key)
+        return {"ok": True}
+
+    @app.get("/auth/me", tags=["auth"])
+    def me(user: dict = Depends(_get_current_user)) -> dict:
+        """Return current user info."""
+        return {"username": user["username"], "is_admin": bool(user.get("is_admin"))}
+
+    # ------------------------------------------------------------------ #
     # Inference routes                                                    #
     # ------------------------------------------------------------------ #
 
@@ -179,7 +252,7 @@ def create_app(loop: QuantumAILoop | None = None) -> FastAPI:
     def ask(
         req: AskRequest,
         background_tasks: BackgroundTasks,
-        _: None = Depends(_require_api_key),
+        user: dict = Depends(_get_current_user),
     ) -> JobQueued:
         """Submit a question. Returns job_id immediately. Poll GET /jobs/{id}."""
         project_context = ""
@@ -190,6 +263,7 @@ def create_app(loop: QuantumAILoop | None = None) -> FastAPI:
             project = get_project(req.project_id)
             if project is None:
                 raise HTTPException(status_code=404, detail="Project not found")
+            _check_project_access(project, user)
             project_context = project.get("description", "")
             history = get_messages(req.project_id)
             files = get_files(req.project_id)
@@ -203,12 +277,23 @@ def create_app(loop: QuantumAILoop | None = None) -> FastAPI:
         return JobQueued(job_id=job_id)
 
     @app.get("/jobs/{job_id}", response_model=JobStatus, tags=["inference"])
-    def get_job(job_id: str, _: None = Depends(_require_api_key)) -> JobStatus:
+    def get_job(job_id: str, _: dict = Depends(_get_current_user)) -> JobStatus:
         """Poll for job result. Status: queued → running → done | error"""
         job = _jobs.get(job_id)
         if job is None:
             raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found")
         return job
+
+    # ------------------------------------------------------------------ #
+    # Project ownership helper                                           #
+    # ------------------------------------------------------------------ #
+
+    def _check_project_access(project: dict, user: dict) -> None:
+        """Raise 404 if user doesn't own the project. Admin sees everything."""
+        if user.get("is_admin") and user.get("id") is None:
+            return  # BELL_API_KEY admin bypass
+        if project.get("user_id") != user.get("id"):
+            raise HTTPException(status_code=404, detail="Project not found")
 
     # ------------------------------------------------------------------ #
     # Project routes                                                      #
@@ -217,38 +302,43 @@ def create_app(loop: QuantumAILoop | None = None) -> FastAPI:
     @app.post("/projects", tags=["projects"])
     def new_project(
         req: ProjectCreate,
-        _: None = Depends(_require_api_key),
+        user: dict = Depends(_get_current_user),
     ) -> dict:
         """Create a new project."""
         if not req.name.strip():
             raise HTTPException(status_code=400, detail="Project name cannot be empty")
-        return create_project(req.name, req.description)
+        uid = user.get("id") or ""
+        return create_project(req.name, req.description, user_id=uid)
 
     @app.get("/projects", tags=["projects"])
-    def all_projects(_: None = Depends(_require_api_key)) -> list[dict]:
-        """List all projects."""
-        return list_projects()
+    def all_projects(user: dict = Depends(_get_current_user)) -> list[dict]:
+        """List projects belonging to the current user (admin sees all)."""
+        uid = None if (user.get("is_admin") and user.get("id") is None) else user.get("id")
+        return list_projects(user_id=uid)
 
     @app.get("/projects/{project_id}", tags=["projects"])
     def one_project(
         project_id: str,
-        _: None = Depends(_require_api_key),
+        user: dict = Depends(_get_current_user),
     ) -> dict:
         """Get a project and its conversation history."""
         project = get_project(project_id)
         if project is None:
             raise HTTPException(status_code=404, detail="Project not found")
+        _check_project_access(project, user)
         project["messages"] = get_messages(project_id)
         return project
 
     @app.delete("/projects/{project_id}", tags=["projects"])
     def remove_project(
         project_id: str,
-        _: None = Depends(_require_api_key),
+        user: dict = Depends(_get_current_user),
     ) -> dict:
         """Delete a project and all its messages."""
-        if get_project(project_id) is None:
+        project = get_project(project_id)
+        if project is None:
             raise HTTPException(status_code=404, detail="Project not found")
+        _check_project_access(project, user)
         delete_project(project_id)
         return {"deleted": project_id}
 
@@ -260,11 +350,13 @@ def create_app(loop: QuantumAILoop | None = None) -> FastAPI:
     async def upload_file(
         project_id: str,
         file: UploadFile = File(...),
-        _: None = Depends(_require_api_key),
+        user: dict = Depends(_get_current_user),
     ) -> dict:
         """Upload a text file (CSV, JSON, TXT, YAML, MD) to a project."""
-        if get_project(project_id) is None:
+        project = get_project(project_id)
+        if project is None:
             raise HTTPException(status_code=404, detail="Project not found")
+        _check_project_access(project, user)
 
         suffix = Path(file.filename or "").suffix.lower()
         if suffix not in _ALLOWED_SUFFIXES:
@@ -297,11 +389,13 @@ def create_app(loop: QuantumAILoop | None = None) -> FastAPI:
     @app.get("/projects/{project_id}/files", tags=["files"])
     def list_files(
         project_id: str,
-        _: None = Depends(_require_api_key),
+        user: dict = Depends(_get_current_user),
     ) -> list[dict]:
         """List files attached to a project (content excluded)."""
-        if get_project(project_id) is None:
+        project = get_project(project_id)
+        if project is None:
             raise HTTPException(status_code=404, detail="Project not found")
+        _check_project_access(project, user)
         return [
             {"id": f["id"], "filename": f["filename"], "created_at": f["created_at"],
              "size": len(f["content"])}
@@ -312,11 +406,13 @@ def create_app(loop: QuantumAILoop | None = None) -> FastAPI:
     def remove_file(
         project_id: str,
         file_id: str,
-        _: None = Depends(_require_api_key),
+        user: dict = Depends(_get_current_user),
     ) -> dict:
         """Delete a file from a project."""
-        if get_project(project_id) is None:
+        project = get_project(project_id)
+        if project is None:
             raise HTTPException(status_code=404, detail="Project not found")
+        _check_project_access(project, user)
         delete_file(file_id)
         return {"deleted": file_id}
 
@@ -327,7 +423,7 @@ def create_app(loop: QuantumAILoop | None = None) -> FastAPI:
     @app.get("/training/pairs", tags=["training"])
     def list_training_pairs(
         approved_only: bool = False,
-        _: None = Depends(_require_api_key),
+        _: dict = Depends(_get_current_user),
     ) -> list[dict]:
         """List collected training pairs. Used for review and approval."""
         return get_training_pairs(approved_only=approved_only)
@@ -336,7 +432,7 @@ def create_app(loop: QuantumAILoop | None = None) -> FastAPI:
     def approve_pair(
         pair_id: str,
         notes: str = "",
-        _: None = Depends(_require_api_key),
+        _: dict = Depends(_get_current_user),
     ) -> dict:
         """Mark a training pair as approved for fine-tuning use."""
         ok = approve_training_pair(pair_id, notes)
@@ -348,7 +444,7 @@ def create_app(loop: QuantumAILoop | None = None) -> FastAPI:
     def reject_pair(
         pair_id: str,
         notes: str = "",
-        _: None = Depends(_require_api_key),
+        _: dict = Depends(_get_current_user),
     ) -> dict:
         """Mark a training pair as rejected — wrong answer, do not use for training."""
         ok = reject_training_pair(pair_id, notes)
@@ -371,7 +467,7 @@ def create_app(loop: QuantumAILoop | None = None) -> FastAPI:
     @app.post("/templates/{name}/run", response_model=AskResponse, tags=["templates"])
     def run_template(
         name: str,
-        _: None = Depends(_require_api_key),
+        _: dict = Depends(_get_current_user),
     ) -> AskResponse:
         tpl = next((t for t in TEMPLATES if t.name == name), None)
         if tpl is None:

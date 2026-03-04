@@ -16,6 +16,18 @@ _CODE_GEN_SYSTEM = f"""You are a QRL code generator. Output ONLY executable Pyth
 
 The code must assign its answer to a variable named `result`.
 
+CRITICAL — EXACT API (do not invent method names):
+QuantumNetwork:
+  net = QuantumNetwork("name")
+  net.add_node("X")
+  net.add_link("A", "B", fiber_channel(km))          # fiber, e.g. fiber_channel(50)
+  net.add_link("A", "B", fiber_channel(km, depolarizing=p))  # fiber + node noise
+  net.add_link("A", "B", ideal_channel())             # lossless
+  net.entanglement_fidelity("A", "B")                 # float
+  net.bottleneck_link("end_node")                     # returns (node1, node2) tuple
+  net.is_secure("A", "B", ["relay1", ...])            # bool
+  net.interventional_state("target", {{"node": rho}})  # np.ndarray
+
 EXAMPLE INPUT: What is the entanglement fidelity of a 50km fiber link?
 EXAMPLE OUTPUT:
 net = QuantumNetwork("test")
@@ -63,9 +75,22 @@ EXAMPLE OUTPUT:
 test = chsh_test(trials=1000)
 result = {{
     "S": round(float(test.S), 4),
-    "violates": bool(test.violates),
+    "violated": bool(test.violated),
     "classical_bound": 2.0,
     "quantum_max": round(float(theoretical_chsh()), 4),
+}}
+
+EXAMPLE INPUT: How statistically reliable is the Bell violation? Run 2000 trials.
+EXAMPLE OUTPUT:
+test = chsh_test(trials=2000)
+tsirelson = theoretical_chsh()
+result = {{
+    "S": round(float(test.S), 4),
+    "violated": bool(test.violated),
+    "trials_per_setting": test.trials_per_setting,
+    "total_trials": test.trials_per_setting * 4,
+    "fraction_of_tsirelson": round(float(test.S / tsirelson), 4),
+    "classical_bound": 2.0,
 }}
 
 EXAMPLE INPUT: Is there genuine quantum entanglement? Does the system violate the Bell inequality?
@@ -150,6 +175,41 @@ result = {{
     "worse_channel": "depolarizing" if s_dep > s_deph else "dephasing",
 }}
 
+EXAMPLE INPUT: What is the causal inequality value for a quantum switch? Does it exceed the classical bound?
+EXAMPLE OUTPUT:
+sw = QuantumSwitch(depolarizing_channel(0.1), depolarizing_channel(0.1))
+val = sw.causal_inequality_value()
+result = {{
+    "causal_inequality_value": round(float(val), 4),
+    "classical_bound": 0.75,
+    "exceeds_classical": val > 0.75,
+    "is_causally_separable": sw.is_causally_separable(),
+}}
+
+EXAMPLE INPUT: Is a quantum switch causally separable?
+EXAMPLE OUTPUT:
+sw = QuantumSwitch(depolarizing_channel(0.05), dephasing_channel(0.05))
+result = {{
+    "is_causally_separable": sw.is_causally_separable(),
+    "causal_inequality_value": round(float(sw.causal_inequality_value()), 4),
+    "exceeds_classical_bound": sw.causal_inequality_value() > 0.75,
+}}
+
+EXAMPLE INPUT: What is the process matrix of a quantum switch?
+EXAMPLE OUTPUT:
+# process_matrix() requires unitary channels — use cptp_from_unitary()
+H = np.array([[1,1],[1,-1]], dtype=complex) / np.sqrt(2)   # Hadamard
+X = np.array([[0,1],[1,0]], dtype=complex)                  # Pauli X
+sw = QuantumSwitch(cptp_from_unitary(H), cptp_from_unitary(X))
+pm = sw.process_matrix()
+result = {{
+    "causal_inequality_value": round(float(sw.causal_inequality_value()), 4),
+    "is_causally_separable": sw.is_causally_separable(),
+    "process_matrix_shape": list(pm.W.shape),
+    "process_matrix_valid": pm.is_valid(),
+    "note": "process_matrix() requires unitary channels (use cptp_from_unitary)",
+}}
+
 If the question CANNOT be answered by running QRL code — for example it asks about
 Bell's own capabilities, requests a general explanation, or is outside the domains
 listed above — output ONLY this single line:
@@ -172,6 +232,15 @@ _RETRY_PREFIX = (
     "The code you generated previously raised an error. "
     "Fix it so it runs correctly. Output ONLY the corrected Python code. "
     "Assign the answer to `result`. No prose, no markdown.\n\n"
+    "REMINDER — correct QuantumNetwork API:\n"
+    "  net = QuantumNetwork('name')\n"
+    "  net.add_node('X')\n"
+    "  net.add_link('A', 'B', fiber_channel(km))   # NOT distance=, NOT ideal=\n"
+    "  net.add_link('A', 'B', fiber_channel(km, depolarizing=p))\n"
+    "  net.add_link('A', 'B', ideal_channel())\n"
+    "  net.entanglement_fidelity('A', 'B')          # NOT verification_link\n"
+    "  net.bottleneck_link('end')                   # NOT bottleneck_check\n"
+    "  net.is_secure('A', 'B', ['relay'])\n\n"
 )
 
 

@@ -2,13 +2,35 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import secrets
 import sqlite3
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+
+
+class _JsonEncoder(json.JSONEncoder):
+    """JSON encoder that handles numpy scalars and other non-standard types."""
+    def default(self, obj: Any) -> Any:
+        try:
+            import numpy as np
+            if isinstance(obj, np.generic):
+                return obj.item()
+            if isinstance(obj, np.ndarray):
+                return obj.tolist()
+        except ImportError:
+            pass
+        if isinstance(obj, complex):
+            return {"real": obj.real, "imag": obj.imag}
+        return repr(obj)
+
+
+def _dumps(obj: Any) -> str:
+    return json.dumps(obj, cls=_JsonEncoder)
 
 # Training pairs log — JSONL file, one verified question→code pair per line.
 # This is the dataset we will use to fine-tune our own local model.
@@ -36,13 +58,38 @@ def init_db() -> None:
     """Create tables if they don't exist. Safe to call on every startup."""
     with _conn() as c:
         c.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id            TEXT PRIMARY KEY,
+                username      TEXT NOT NULL UNIQUE,
+                email         TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                is_admin      INTEGER NOT NULL DEFAULT 0,
+                created_at    TEXT NOT NULL
+            )
+        """)
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS sessions (
+                token      TEXT PRIMARY KEY,
+                user_id    TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        """)
+        c.execute("""
             CREATE TABLE IF NOT EXISTS projects (
                 id          TEXT PRIMARY KEY,
                 name        TEXT NOT NULL,
                 description TEXT NOT NULL DEFAULT '',
+                user_id     TEXT NOT NULL DEFAULT '',
                 created_at  TEXT NOT NULL
             )
         """)
+        # Migration: add user_id to projects if it was created before this column existed
+        try:
+            c.execute("ALTER TABLE projects ADD COLUMN user_id TEXT NOT NULL DEFAULT ''")
+        except sqlite3.OperationalError:
+            pass  # column already exists
         c.execute("""
             CREATE TABLE IF NOT EXISTS messages (
                 id          TEXT PRIMARY KEY,
@@ -69,25 +116,136 @@ def init_db() -> None:
 
 
 # ------------------------------------------------------------------ #
+# Password hashing (stdlib only — no bcrypt dep needed)              #
+# ------------------------------------------------------------------ #
+
+_PBKDF2_ITERATIONS = 260_000
+
+
+def hash_password(password: str) -> str:
+    salt = secrets.token_hex(32)
+    dk = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), _PBKDF2_ITERATIONS)
+    return f"pbkdf2:sha256:{_PBKDF2_ITERATIONS}:{salt}:{dk.hex()}"
+
+
+def verify_password(password: str, stored: str) -> bool:
+    try:
+        _, algo, iters, salt, stored_hash = stored.split(":")
+        dk = hashlib.pbkdf2_hmac(algo, password.encode(), salt.encode(), int(iters))
+        return secrets.compare_digest(dk.hex(), stored_hash)
+    except Exception:
+        return False
+
+
+# ------------------------------------------------------------------ #
+# Users                                                               #
+# ------------------------------------------------------------------ #
+
+def create_user(username: str, email: str, password: str, is_admin: bool = False) -> dict:
+    """Create a new user. Raises sqlite3.IntegrityError if username/email taken."""
+    user_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    pw_hash = hash_password(password)
+    with _conn() as c:
+        c.execute(
+            "INSERT INTO users (id, username, email, password_hash, is_admin, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (user_id, username.strip(), email.strip().lower(), pw_hash, int(is_admin), now),
+        )
+    return {
+        "id": user_id, "username": username.strip(),
+        "email": email.strip().lower(), "is_admin": is_admin, "created_at": now,
+    }
+
+
+def get_user_by_login(login: str) -> dict | None:
+    """Look up a user by username or email (case-insensitive)."""
+    login = login.strip()
+    with _conn() as c:
+        row = c.execute(
+            "SELECT * FROM users WHERE lower(username) = lower(?) OR email = lower(?)",
+            (login, login),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def get_user_by_id(user_id: str) -> dict | None:
+    with _conn() as c:
+        row = c.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    return dict(row) if row else None
+
+
+def count_users() -> int:
+    with _conn() as c:
+        return c.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+
+
+# ------------------------------------------------------------------ #
+# Sessions                                                            #
+# ------------------------------------------------------------------ #
+
+_SESSION_DAYS = 30
+
+
+def create_session(user_id: str) -> str:
+    """Create a new session and return the opaque token."""
+    token = secrets.token_urlsafe(32)
+    now = datetime.now(timezone.utc)
+    expires = now + timedelta(days=_SESSION_DAYS)
+    with _conn() as c:
+        c.execute(
+            "INSERT INTO sessions (token, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)",
+            (token, user_id, now.isoformat(), expires.isoformat()),
+        )
+    return token
+
+
+def get_session_user(token: str) -> dict | None:
+    """Return the user dict for a valid, non-expired token, else None."""
+    now = datetime.now(timezone.utc).isoformat()
+    with _conn() as c:
+        row = c.execute(
+            """SELECT u.* FROM sessions s
+               JOIN users u ON s.user_id = u.id
+               WHERE s.token = ? AND s.expires_at > ?""",
+            (token, now),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def delete_session(token: str) -> None:
+    with _conn() as c:
+        c.execute("DELETE FROM sessions WHERE token = ?", (token,))
+
+
+# ------------------------------------------------------------------ #
 # Projects                                                            #
 # ------------------------------------------------------------------ #
 
-def create_project(name: str, description: str = "") -> dict:
+def create_project(name: str, description: str = "", user_id: str = "") -> dict:
     project_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
     with _conn() as c:
         c.execute(
-            "INSERT INTO projects (id, name, description, created_at) VALUES (?, ?, ?, ?)",
-            (project_id, name.strip(), description.strip(), now),
+            "INSERT INTO projects (id, name, description, user_id, created_at) VALUES (?, ?, ?, ?, ?)",
+            (project_id, name.strip(), description.strip(), user_id, now),
         )
-    return {"id": project_id, "name": name.strip(), "description": description.strip(), "created_at": now}
+    return {
+        "id": project_id, "name": name.strip(),
+        "description": description.strip(), "user_id": user_id, "created_at": now,
+    }
 
 
-def list_projects() -> list[dict]:
+def list_projects(user_id: str | None = None) -> list[dict]:
+    """List projects. Pass user_id to scope to one user; None returns all (admin)."""
     with _conn() as c:
-        rows = c.execute(
-            "SELECT * FROM projects ORDER BY created_at DESC"
-        ).fetchall()
+        if user_id is None:
+            rows = c.execute("SELECT * FROM projects ORDER BY created_at DESC").fetchall()
+        else:
+            rows = c.execute(
+                "SELECT * FROM projects WHERE user_id = ? ORDER BY created_at DESC",
+                (user_id,),
+            ).fetchall()
     return [dict(r) for r in rows]
 
 
@@ -119,7 +277,7 @@ def add_message(
 ) -> dict:
     msg_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
-    value_json = json.dumps(value)
+    value_json = _dumps(value)
     with _conn() as c:
         c.execute(
             """INSERT INTO messages
@@ -217,7 +375,7 @@ def log_training_pair(
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     with open(_TRAINING_FILE, "a", encoding="utf-8") as f:
-        f.write(json.dumps(record) + "\n")
+        f.write(_dumps(record) + "\n")
     return pair_id
 
 

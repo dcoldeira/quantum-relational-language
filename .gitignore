@@ -24,8 +24,8 @@ htmlcov/
 # Bell platform database
 bell.db
 
-# Training data — collected during dogfooding, not committed until ready to release
-training/pairs.jsonl
+# Training data + scripts — kept local until open source decision
+training/
 
 # OS
 .DS_Store

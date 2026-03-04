@@ -10,6 +10,13 @@ import math
 import numpy as np
 
 
+def _blocked_import(name, *args, **kwargs):
+    raise ImportError(
+        f"Imports are not allowed in the QRL sandbox. "
+        f"All needed names (np, QuantumNetwork, chsh_test, etc.) are pre-loaded."
+    )
+
+
 def _build_namespace() -> dict:
     """Build the restricted execution namespace with QRL imports."""
     from qrl.domains.networks import (
@@ -17,7 +24,8 @@ def _build_namespace() -> dict:
         fiber_channel, free_space_channel, ideal_channel, memory_noise,
     )
     from qrl.causal import (
-        CPTPMap, QuantumCausalDAG, QuantumMarkovChain,
+        CPTPMap, ProcessMatrix, QuantumSwitch,
+        QuantumCausalDAG, QuantumMarkovChain,
         depolarizing_channel, dephasing_channel, amplitude_damping_channel,
         cptp_from_unitary, vonneumann_entropy,
         quantum_mutual_information, quantum_conditional_mutual_information,
@@ -32,8 +40,9 @@ def _build_namespace() -> dict:
         "math": math,
         # numpy
         "np": np,
-        # domain
+        # domain — include short aliases the model may generate
         "QuantumNetwork": QuantumNetwork,
+        "Network": QuantumNetwork,          # alias: model sometimes emits Network
         "ChannelSpec": ChannelSpec,
         "fiber_channel": fiber_channel,
         "free_space_channel": free_space_channel,
@@ -41,6 +50,8 @@ def _build_namespace() -> dict:
         "memory_noise": memory_noise,
         # causal
         "CPTPMap": CPTPMap,
+        "ProcessMatrix": ProcessMatrix,
+        "QuantumSwitch": QuantumSwitch,
         "QuantumCausalDAG": QuantumCausalDAG,
         "QuantumMarkovChain": QuantumMarkovChain,
         "depolarizing_channel": depolarizing_channel,
@@ -89,6 +100,11 @@ def _build_namespace() -> dict:
         "chr": chr,
         "ord": ord,
         "isinstance": isinstance,
+        "type": type,
+        "callable": callable,
+        "hasattr": hasattr,
+        "getattr": getattr,
+        "vars": vars,
         # result placeholder
         "result": None,
     }
@@ -147,7 +163,7 @@ def execute(raw_code: str) -> ExecutionResult:
     code = _strip_imports(_extract_code(raw_code))
     ns = _build_namespace()
     try:
-        exec(code, {"__builtins__": {}}, ns)  # no builtins except what we provide
+        exec(code, {"__builtins__": {"__import__": _blocked_import}}, ns)
     except Exception:
         return ExecutionResult(error=traceback.format_exc(), code=code)
     return ExecutionResult(value=ns.get("result"), code=code)

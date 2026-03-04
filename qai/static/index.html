@@ -260,34 +260,6 @@
       margin-top: 0.1rem;
     }
 
-    /* API key input */
-    .api-key-wrap {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    .api-key-wrap label {
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: var(--color-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      white-space: nowrap;
-    }
-    .api-key-wrap input {
-      padding: 0.35rem 0.65rem;
-      border: 1px solid var(--color-border);
-      border-radius: 6px;
-      font-family: "SF Mono", monospace;
-      font-size: 0.78rem;
-      color: var(--color-text);
-      background: var(--color-bg);
-      width: 180px;
-      outline: none;
-    }
-    .api-key-wrap input:focus { border-color: var(--color-primary); }
-    .api-key-wrap.hidden { display: none; }
-
     /* ── Conversation history ── */
     .conversation {
       flex: 1;
@@ -534,6 +506,191 @@
       margin-top: 0.5rem;
     }
 
+    /* ── Login screen ── */
+    .login-screen {
+      position: fixed; inset: 0;
+      background: linear-gradient(-45deg, #09080f, #1a1745, #0f1629, #1c1060);
+      background-size: 400% 400%;
+      animation: loginBg 16s ease infinite;
+      display: flex; align-items: center; justify-content: center;
+      z-index: 200;
+    }
+    .login-screen.hidden { display: none; }
+
+    @keyframes loginBg {
+      0%, 100% { background-position: 0% 50%; }
+      50%       { background-position: 100% 50%; }
+    }
+
+    /* Decorative glow orbs */
+    .login-screen::before {
+      content: '';
+      position: absolute;
+      width: 650px; height: 650px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(79,70,229,0.18) 0%, transparent 70%);
+      top: -160px; left: -160px;
+      pointer-events: none;
+    }
+    .login-screen::after {
+      content: '';
+      position: absolute;
+      width: 500px; height: 500px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(139,92,246,0.14) 0%, transparent 70%);
+      bottom: -120px; right: -120px;
+      pointer-events: none;
+    }
+
+    .login-box {
+      background: rgba(255,255,255,0.98);
+      border-radius: 16px;
+      box-shadow: 0 32px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.08);
+      padding: 2.5rem;
+      width: 400px;
+      max-width: 92vw;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Brand block */
+    .login-brand {
+      text-align: center;
+      margin-bottom: 1.75rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .login-logo-icon {
+      display: block;
+      font-size: 3rem;
+      color: var(--color-primary);
+      margin-bottom: 0.5rem;
+      animation: logoPulse 3.5s ease-in-out infinite;
+    }
+
+    @keyframes logoPulse {
+      0%, 100% { filter: drop-shadow(0 0 6px rgba(79,70,229,0.35)); }
+      50%       { filter: drop-shadow(0 0 20px rgba(79,70,229,0.75)); }
+    }
+
+    .login-brand h1 {
+      font-size: 1.9rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--color-text);
+      margin: 0 0 0.2rem;
+    }
+
+    .login-tagline {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--color-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .login-subtitle {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--color-text);
+      margin-bottom: 1.1rem;
+    }
+
+    .login-box label {
+      display: block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--color-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 0.35rem;
+      margin-top: 1rem;
+    }
+
+    .login-box input {
+      width: 100%;
+      padding: 0.7rem 0.9rem;
+      border: 1.5px solid var(--color-border);
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 0.95rem;
+      color: var(--color-text);
+      background: var(--color-bg);
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+    }
+    .login-box input:focus {
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px rgba(79,70,229,0.12);
+      background: #fff;
+    }
+
+    .login-error {
+      font-size: 0.8rem;
+      color: var(--color-error);
+      margin-top: 0.65rem;
+      min-height: 1.2em;
+    }
+
+    .login-submit {
+      width: 100%;
+      margin-top: 1.3rem;
+      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 0.78rem;
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(79,70,229,0.4);
+      transition: opacity 0.15s, transform 0.12s, box-shadow 0.15s;
+    }
+    .login-submit:hover:not(:disabled) {
+      opacity: 0.93;
+      transform: translateY(-1px);
+      box-shadow: 0 7px 22px rgba(79,70,229,0.5);
+    }
+    .login-submit:active:not(:disabled) { transform: translateY(0); }
+    .login-submit:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .login-toggle {
+      text-align: center;
+      margin-top: 1.1rem;
+      font-size: 0.82rem;
+      color: var(--color-muted);
+    }
+    .login-toggle a {
+      color: var(--color-primary);
+      cursor: pointer;
+      text-decoration: none;
+      font-weight: 700;
+    }
+    .login-toggle a:hover { text-decoration: underline; }
+
+    /* ── User info bar (replaces API key bar) ── */
+    .user-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .user-bar .username {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--color-muted);
+    }
+    .user-bar .logout-btn {
+      background: none;
+      border: 1px solid var(--color-border);
+      border-radius: 5px;
+      font-size: 0.78rem;
+      color: var(--color-muted);
+      cursor: pointer;
+      padding: 0.25rem 0.65rem;
+      transition: border-color 0.12s, color 0.12s;
+    }
+    .user-bar .logout-btn:hover { border-color: var(--color-error); color: var(--color-error); }
+
     /* ── Modal ── */
     .modal-overlay {
       position: fixed; inset: 0;
@@ -594,6 +751,46 @@
 </head>
 <body>
 
+<!-- Login / Register screen -->
+<div class="login-screen" id="login-screen">
+  <div class="login-box">
+    <div class="login-brand">
+      <span class="login-logo-icon">◈</span>
+      <h1>Bell</h1>
+      <div class="login-tagline">Quantum AI Platform</div>
+    </div>
+    <div class="login-subtitle" id="login-subtitle">Sign in to your account</div>
+
+    <!-- Sign-in form -->
+    <div id="signin-form">
+      <label for="signin-user">Username or email</label>
+      <input type="text" id="signin-user" placeholder="you@example.com" autocomplete="username" />
+      <label for="signin-pass">Password</label>
+      <input type="password" id="signin-pass" placeholder="••••••••" autocomplete="current-password" />
+      <div class="login-error" id="signin-error"></div>
+      <button class="login-submit" id="signin-btn" onclick="doLogin()">Sign in</button>
+      <div class="login-toggle">
+        No account? <a onclick="showRegister()">Create one</a>
+      </div>
+    </div>
+
+    <!-- Register form -->
+    <div id="register-form" style="display:none">
+      <label for="reg-user">Username</label>
+      <input type="text" id="reg-user" placeholder="quantumdev" autocomplete="username" />
+      <label for="reg-email">Email</label>
+      <input type="email" id="reg-email" placeholder="you@example.com" autocomplete="email" />
+      <label for="reg-pass">Password</label>
+      <input type="password" id="reg-pass" placeholder="8+ characters" autocomplete="new-password" />
+      <div class="login-error" id="register-error"></div>
+      <button class="login-submit" id="register-btn" onclick="doRegister()">Create account</button>
+      <div class="login-toggle">
+        Already have an account? <a onclick="showSignin()">Sign in</a>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Sidebar -->
 <aside class="sidebar">
   <div class="sidebar-header">
@@ -631,9 +828,9 @@
       <div class="project-title" id="project-title">No project selected</div>
       <div class="project-desc" id="project-desc">Create or select a project to get started.</div>
     </div>
-    <div class="api-key-wrap hidden" id="api-key-bar">
-      <label for="api-key-input">API Key</label>
-      <input type="password" id="api-key-input" placeholder="sk-bell-..." autocomplete="off" />
+    <div class="user-bar" id="user-bar">
+      <span class="username" id="user-display"></span>
+      <button class="logout-btn" onclick="doLogout()">Sign out</button>
     </div>
   </div>
 
@@ -680,34 +877,138 @@
   // State                                                               //
   // ------------------------------------------------------------------ //
   let currentProjectId = null;
-  const KEY_STORAGE = "bell_api_key";
+  const TOKEN_KEY = "bell_token";
+  const USERNAME_KEY = "bell_username";
 
   // ------------------------------------------------------------------ //
-  // API key                                                             //
+  // Auth helpers                                                        //
   // ------------------------------------------------------------------ //
-  function getApiKey() {
-    const input = document.getElementById("api-key-input").value.trim();
-    if (input) { localStorage.setItem(KEY_STORAGE, input); return input; }
-    return localStorage.getItem(KEY_STORAGE) || "";
-  }
+
+  function getToken() { return localStorage.getItem(TOKEN_KEY) || ""; }
 
   function authHeaders() {
-    const key = getApiKey();
-    return key
-      ? { "Content-Type": "application/json", "X-API-Key": key }
+    const token = getToken();
+    return token
+      ? { "Content-Type": "application/json", "X-API-Key": token }
       : { "Content-Type": "application/json" };
   }
 
-  async function initApiKeyBar() {
+  function showLoginScreen() {
+    document.getElementById("login-screen").classList.remove("hidden");
+    showSignin();
+  }
+
+  function hideLoginScreen() {
+    document.getElementById("login-screen").classList.add("hidden");
+  }
+
+  function showSignin() {
+    document.getElementById("login-subtitle").textContent = "Sign in to your account";
+    document.getElementById("signin-form").style.display = "";
+    document.getElementById("register-form").style.display = "none";
+    document.getElementById("signin-error").textContent = "";
+    setTimeout(() => document.getElementById("signin-user").focus(), 50);
+  }
+
+  function showRegister() {
+    document.getElementById("login-subtitle").textContent = "Create your account";
+    document.getElementById("signin-form").style.display = "none";
+    document.getElementById("register-form").style.display = "";
+    document.getElementById("register-error").textContent = "";
+    setTimeout(() => document.getElementById("reg-user").focus(), 50);
+  }
+
+  async function doLogin() {
+    const username = document.getElementById("signin-user").value.trim();
+    const password = document.getElementById("signin-pass").value;
+    const errEl = document.getElementById("signin-error");
+    if (!username || !password) { errEl.textContent = "Please fill in all fields."; return; }
+    const btn = document.getElementById("signin-btn");
+    btn.disabled = true; btn.textContent = "Signing in…";
+    errEl.textContent = "";
     try {
-      // Probe a GET endpoint — never triggers Claude API calls
-      const r = await fetch("/projects", { method: "GET" });
-      if (r.status === 401) {
-        document.getElementById("api-key-bar").classList.remove("hidden");
-        const saved = localStorage.getItem(KEY_STORAGE);
-        if (saved) document.getElementById("api-key-input").value = saved;
+      const res = await fetch("/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) { errEl.textContent = data.detail || "Login failed."; return; }
+      localStorage.setItem(TOKEN_KEY, data.token);
+      localStorage.setItem(USERNAME_KEY, data.username);
+      onAuthenticated(data.username);
+    } catch (e) {
+      errEl.textContent = "Network error: " + e.message;
+    } finally {
+      btn.disabled = false; btn.textContent = "Sign in";
+    }
+  }
+
+  async function doRegister() {
+    const username = document.getElementById("reg-user").value.trim();
+    const email = document.getElementById("reg-email").value.trim();
+    const password = document.getElementById("reg-pass").value;
+    const errEl = document.getElementById("register-error");
+    if (!username || !email || !password) { errEl.textContent = "Please fill in all fields."; return; }
+    const btn = document.getElementById("register-btn");
+    btn.disabled = true; btn.textContent = "Creating account…";
+    errEl.textContent = "";
+    try {
+      const res = await fetch("/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) { errEl.textContent = data.detail || "Registration failed."; return; }
+      localStorage.setItem(TOKEN_KEY, data.token);
+      localStorage.setItem(USERNAME_KEY, data.username);
+      onAuthenticated(data.username);
+    } catch (e) {
+      errEl.textContent = "Network error: " + e.message;
+    } finally {
+      btn.disabled = false; btn.textContent = "Create account";
+    }
+  }
+
+  async function doLogout() {
+    const token = getToken();
+    if (token) {
+      try { await fetch("/auth/logout", { method: "POST", headers: { "X-API-Key": token } }); }
+      catch (_) {}
+    }
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USERNAME_KEY);
+    currentProjectId = null;
+    showLoginScreen();
+  }
+
+  function onAuthenticated(username) {
+    document.getElementById("user-display").textContent = username;
+    hideLoginScreen();
+    loadProjects();
+    loadTemplates();
+  }
+
+  async function initAuth() {
+    const token = getToken();
+    if (!token) { showLoginScreen(); return; }
+    try {
+      const res = await fetch("/auth/me", { headers: { "X-API-Key": token } });
+      if (res.ok) {
+        const data = await res.json();
+        const username = data.username || localStorage.getItem(USERNAME_KEY) || "user";
+        document.getElementById("user-display").textContent = username;
+        hideLoginScreen();
+        loadProjects();
+        loadTemplates();
+      } else {
+        localStorage.removeItem(TOKEN_KEY);
+        showLoginScreen();
       }
-    } catch (_) {}
+    } catch (_) {
+      showLoginScreen();
+    }
   }
 
   // ------------------------------------------------------------------ //
@@ -938,7 +1239,7 @@
     const formData = new FormData();
     formData.append("file", file);
     const headers = {};
-    const key = getApiKey();
+    const key = getToken();
     if (key) headers["X-API-Key"] = key;
     try {
       const res = await fetch(`/projects/${currentProjectId}/files`, {
@@ -960,7 +1261,7 @@
   async function deleteFileItem(fileId) {
     if (!currentProjectId) return;
     const headers = {};
-    const key = getApiKey();
+    const key = getToken();
     if (key) headers["X-API-Key"] = key;
     await fetch(`/projects/${currentProjectId}/files/${fileId}`, {
       method: "DELETE", headers,
@@ -1124,7 +1425,7 @@
 
   async function submitFeedback(pairId, action, upBtn, downBtn) {
     const headers = {};
-    const key = getApiKey();
+    const key = getToken();
     if (key) headers["X-API-Key"] = key;
     try {
       await fetch(`/training/pairs/${pairId}/${action}`, { method: "POST", headers });
@@ -1219,10 +1520,19 @@
   // ------------------------------------------------------------------ //
   // Init                                                                //
   // ------------------------------------------------------------------ //
-  initApiKeyBar();
-  loadProjects();
-  loadTemplates();
+  initAuth();
   setupDropZone();
+
+  // Login keyboard shortcuts
+  document.getElementById("signin-pass").addEventListener("keydown", e => {
+    if (e.key === "Enter") doLogin();
+  });
+  document.getElementById("signin-user").addEventListener("keydown", e => {
+    if (e.key === "Enter") document.getElementById("signin-pass").focus();
+  });
+  document.getElementById("reg-pass").addEventListener("keydown", e => {
+    if (e.key === "Enter") doRegister();
+  });
 </script>
 </body>
 </html>
