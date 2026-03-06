@@ -26,6 +26,7 @@ from .store import (
     add_message, get_messages,
     add_file, get_files, delete_file,
     log_training_pair, get_training_pairs, approve_training_pair, reject_training_pair,
+    admin_stats, admin_recent_queries,
 )
 from .templates import TEMPLATES
 
@@ -474,6 +475,28 @@ def create_app(loop: QuantumAILoop | None = None) -> FastAPI:
             raise HTTPException(status_code=404, detail=f"Template '{name}' not found")
         r = tpl.run()
         return AskResponse(answer=r.answer, code=r.exec_result.code, value=r.value, ok=r.ok)
+
+    # ------------------------------------------------------------------ #
+    # Admin routes (is_admin required)                                   #
+    # ------------------------------------------------------------------ #
+
+    def _require_admin(user: dict = Depends(_get_current_user)) -> dict:
+        if not user.get("is_admin"):
+            raise HTTPException(status_code=403, detail="Admin access required")
+        return user
+
+    @app.get("/admin/stats", tags=["admin"])
+    def get_admin_stats(_: dict = Depends(_require_admin)) -> dict:
+        """Aggregate platform stats: users, queries, success rate."""
+        return admin_stats()
+
+    @app.get("/admin/queries", tags=["admin"])
+    def get_admin_queries(
+        limit: int = 50,
+        _: dict = Depends(_require_admin),
+    ) -> list[dict]:
+        """Recent queries across all users. Max 200 per call."""
+        return admin_recent_queries(min(limit, 200))
 
     # Serve static assets
     if _STATIC_DIR.exists():

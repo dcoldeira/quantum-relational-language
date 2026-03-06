@@ -210,6 +210,74 @@ result = {{
     "note": "process_matrix() requires unitary channels (use cptp_from_unitary)",
 }}
 
+EXAMPLE INPUT: Does quantum coherence help energy transfer in FMO photosynthesis?
+EXAMPLE OUTPUT:
+fmo = fmo_complex(temperature_k=300)
+eta_q = fmo.energy_transfer_efficiency("BChl-1", "BChl-3", t_ps=3.0)
+eta_c = fmo.classical_transfer_efficiency("BChl-1", "BChl-3", t_ps=3.0)
+advantage = fmo.quantum_advantage("BChl-1", "BChl-3", t_ps=3.0)
+result = {{
+    "quantum_efficiency": round(eta_q, 4),
+    "classical_efficiency": round(eta_c, 4),
+    "quantum_advantage_ratio": round(advantage, 4),
+    "coherence_helps": advantage > 1.0,
+}}
+
+EXAMPLE INPUT: How long does quantum coherence survive in the FMO complex at room temperature?
+EXAMPLE OUTPUT:
+fmo = fmo_complex(temperature_k=300)
+tau_12 = fmo.coherence_lifetime("BChl-1", "BChl-2", t_ps=1.0)
+tau_cold = fmo_complex(temperature_k=77).coherence_lifetime("BChl-1", "BChl-2", t_ps=1.0)
+result = {{
+    "coherence_lifetime_300K_ps": round(tau_12, 4),
+    "coherence_lifetime_77K_ps": round(tau_cold, 4),
+    "temperature_ratio": round(tau_cold / tau_12, 2) if tau_12 > 0 else "N/A",
+    "note": "Coherence persists longer at low temperature — environment suppressed",
+}}
+
+EXAMPLE INPUT: What is the entanglement between chromophores 1 and 3 in FMO?
+EXAMPLE OUTPUT:
+fmo = fmo_complex(temperature_k=300)
+ent_13 = fmo.chromophore_entanglement("BChl-1", "BChl-3", t_ps=0.5)
+ent_12 = fmo.chromophore_entanglement("BChl-1", "BChl-2", t_ps=0.5)
+result = {{
+    "entanglement_1_3_bits": round(ent_13, 4),
+    "entanglement_1_2_bits": round(ent_12, 4),
+    "note": "0 = separable, 1 = maximally entangled (1 bit)",
+}}
+
+EXAMPLE INPUT: Model the avian compass: how does the radical pair mechanism sense a magnetic field?
+EXAMPLE OUTPUT:
+pair = RadicalPair("cryptochrome")
+pair.set_hyperfine(coupling_mhz=14.0)
+pair.set_field(B_uT=50, theta_deg=0)
+y0 = pair.singlet_triplet_yield(t_us=1.0)
+pair.set_field(B_uT=50, theta_deg=90)
+y90 = pair.singlet_triplet_yield(t_us=1.0)
+sensitivity = pair.field_sensitivity(delta_theta_deg=1.0, t_us=1.0)
+pair.set_field(B_uT=50, theta_deg=0)
+result = {{
+    "singlet_yield_0deg": round(y0, 4),
+    "singlet_yield_90deg": round(y90, 4),
+    "delta_yield": round(abs(y0 - y90), 4),
+    "sensitivity_per_degree": round(sensitivity, 6),
+    "note": "Yield difference encodes field inclination — the compass signal",
+}}
+
+EXAMPLE INPUT: Compare quantum vs classical energy transfer efficiency in FMO.
+EXAMPLE OUTPUT:
+fmo = fmo_complex(temperature_k=300)
+eta_q = fmo.energy_transfer_efficiency("BChl-1", "BChl-3", t_ps=3.0)
+eta_c = fmo.classical_transfer_efficiency("BChl-1", "BChl-3", t_ps=3.0)
+gamma = decoherence_rate(300.0, 35.0, cutoff_cm=200.0)
+result = {{
+    "quantum_efficiency": round(eta_q, 4),
+    "classical_efficiency": round(eta_c, 4),
+    "quantum_advantage": round(eta_q / eta_c if eta_c > 0 else float("inf"), 3),
+    "dephasing_rate_per_ps": round(gamma, 2),
+    "enaqt_active": eta_q > eta_c,
+}}
+
 If the question CANNOT be answered by running QRL code — for example it asks about
 Bell's own capabilities, requests a general explanation, or is outside the domains
 listed above — output ONLY this single line:

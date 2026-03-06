@@ -344,6 +344,64 @@ def delete_file(file_id: str) -> bool:
 
 
 # ------------------------------------------------------------------ #
+# Admin analytics                                                     #
+# ------------------------------------------------------------------ #
+
+def admin_stats() -> dict:
+    """Aggregate stats for the admin dashboard."""
+    from datetime import date
+    today = date.today().isoformat()
+    with _conn() as c:
+        total_users   = c.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+        total_queries = c.execute("SELECT COUNT(*) FROM messages").fetchone()[0]
+        queries_today = c.execute(
+            "SELECT COUNT(*) FROM messages WHERE created_at >= ?", (today,)
+        ).fetchone()[0]
+        ok_count      = c.execute(
+            "SELECT COUNT(*) FROM messages WHERE ok = 1"
+        ).fetchone()[0]
+        active_users  = c.execute(
+            "SELECT COUNT(DISTINCT p.user_id) FROM messages m "
+            "JOIN projects p ON m.project_id = p.id"
+        ).fetchone()[0]
+    success_rate = round(ok_count / total_queries, 4) if total_queries else 0.0
+    return {
+        "total_users":   total_users,
+        "active_users":  active_users,
+        "total_queries": total_queries,
+        "queries_today": queries_today,
+        "success_rate":  success_rate,
+    }
+
+
+def admin_recent_queries(limit: int = 50) -> list[dict]:
+    """Return most recent queries across all users, with username."""
+    with _conn() as c:
+        rows = c.execute(
+            """SELECT m.id, m.question, m.answer, m.ok, m.created_at,
+                      u.username, u.email
+               FROM messages m
+               JOIN projects p ON m.project_id = p.id
+               JOIN users u    ON p.user_id = u.id
+               ORDER BY m.created_at DESC
+               LIMIT ?""",
+            (limit,),
+        ).fetchall()
+    return [
+        {
+            "id":         r["id"],
+            "username":   r["username"],
+            "email":      r["email"],
+            "question":   r["question"],
+            "answer":     (r["answer"] or "")[:300],
+            "ok":         bool(r["ok"]),
+            "created_at": r["created_at"],
+        }
+        for r in rows
+    ]
+
+
+# ------------------------------------------------------------------ #
 # Training data collection                                            #
 # ------------------------------------------------------------------ #
 

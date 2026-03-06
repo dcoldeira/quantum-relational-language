@@ -23,6 +23,11 @@ def _build_namespace() -> dict:
         QuantumNetwork, ChannelSpec,
         fiber_channel, free_space_channel, ideal_channel, memory_noise,
     )
+    from qrl.domains.biology import (
+        QuantumBioNetwork, RadicalPair, fmo_complex,
+        lindblad_evolve, phonon_bath, decoherence_rate,
+        coherence_lifetime, dipole_coupling,
+    )
     from qrl.causal import (
         CPTPMap, ProcessMatrix, QuantumSwitch,
         QuantumCausalDAG, QuantumMarkovChain,
@@ -40,14 +45,23 @@ def _build_namespace() -> dict:
         "math": math,
         # numpy
         "np": np,
-        # domain — include short aliases the model may generate
+        # domain: networks
         "QuantumNetwork": QuantumNetwork,
-        "Network": QuantumNetwork,          # alias: model sometimes emits Network
+        "Network": QuantumNetwork,          # alias
         "ChannelSpec": ChannelSpec,
         "fiber_channel": fiber_channel,
         "free_space_channel": free_space_channel,
         "ideal_channel": ideal_channel,
         "memory_noise": memory_noise,
+        # domain: biology
+        "QuantumBioNetwork": QuantumBioNetwork,
+        "RadicalPair": RadicalPair,
+        "fmo_complex": fmo_complex,
+        "lindblad_evolve": lindblad_evolve,
+        "phonon_bath": phonon_bath,
+        "decoherence_rate": decoherence_rate,
+        "coherence_lifetime": coherence_lifetime,
+        "dipole_coupling": dipole_coupling,
         # causal
         "CPTPMap": CPTPMap,
         "ProcessMatrix": ProcessMatrix,

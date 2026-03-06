@@ -448,3 +448,56 @@ rho_zero = np.array([[1,0],[0,0]], dtype=complex)
 after_intervention = net.interventional_state("Bob", {"Repeater": rho_zero})
 # → Bob's state when Repeater is forcibly reset to |0⟩
 ```
+
+---
+
+## Quantum Biology — `qrl.domains.biology`
+
+### QuantumBioNetwork
+
+Model a light-harvesting complex as an open quantum network with phonon bath dephasing.
+
+```python
+from qrl.domains.biology import QuantumBioNetwork, fmo_complex
+
+# Build from scratch
+net = QuantumBioNetwork("FMO")
+net.add_chromophore("BChl-1", energy_cm=12410)
+net.add_chromophore("BChl-2", energy_cm=12530)
+net.add_coupling("BChl-1", "BChl-2", j_cm=87.7)
+net.set_bath(temperature_k=300, reorganisation_cm=35)
+
+# Metrics
+eta   = net.energy_transfer_efficiency("BChl-1", "BChl-2", t_ps=5.0)  # ENAQT efficiency
+tau   = net.coherence_lifetime("BChl-1", "BChl-2", t_ps=3.0)           # ps
+ent   = net.chromophore_entanglement("BChl-1", "BChl-2", t_ps=1.0)     # bits
+qa    = net.quantum_advantage("BChl-1", "BChl-2")                       # ratio > 1 = ENAQT
+pops  = net.site_populations("BChl-1", t_ps=5.0)                       # dict[label, list[float]]
+
+# Pre-built 7-site FMO (Adolphs & Renger 2006)
+fmo = fmo_complex(temperature_k=300)
+```
+
+### RadicalPair
+
+Avian cryptochrome magnetic compass. Two electrons + one nuclear spin (8D Hilbert space).
+
+```python
+from qrl.domains.biology import RadicalPair
+
+pair = RadicalPair("cryptochrome")
+pair.set_hyperfine(coupling_mhz=14.0)          # isotropic HF coupling
+pair.set_field(B_uT=50, theta_deg=45)          # Earth's field, inclination angle
+
+yield_  = pair.singlet_triplet_yield(t_us=1.0)         # Φ_S ∈ [0,1]
+sens    = pair.field_sensitivity(delta_theta_deg=1.0)  # |dΦ_S/dθ| per degree
+```
+
+### Standalone functions
+
+```python
+gamma = decoherence_rate(temperature_k=300, reorganisation_cm=35, cutoff_cm=200)  # ps⁻¹
+ops   = phonon_bath(temperature_k=300, reorganisation_cm=35, n_sites=7)            # Lindblad ops
+tau   = coherence_lifetime(rhos, times, site_i=0, site_j=1)                       # ps
+H_ij  = dipole_coupling(J_cm=87.7, i=0, j=1, n_sites=7)                          # cm⁻¹ matrix
+```
