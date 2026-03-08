@@ -1,3 +1,9 @@
+> **This repository has moved.**
+> Active development continues at **[entangledcode/qrl](https://github.com/entangledcode/qrl)** — 595 tests passing, 4 domain modules (biology, sensing, chemistry, networks), hardware-verified on Quandela QPU.
+> This repo is archived for historical reference only.
+
+---
+
 # Quantum Relational Language (QRL)
 
 **A relations-first approach to quantum computing: describe the correlations, derive the predictions.**
